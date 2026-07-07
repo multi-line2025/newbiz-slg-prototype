@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>新規事業立ち上げSLG 縦スライス v0.7</title>
+    <style>
+      /* アートUIUXコンセプト：ダーク基調・CA=緑 / PA=紫 */
+      :root {
+        --bg: #0e1116;
+        --panel: #161b22;
+        --panel2: #1c232d;
+        --border: #2a323d;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --ca: #3fb950; /* CA=緑 */
+        --pa: #a371f7; /* PA=紫 */
+        --accent: #388bfd;
+        --warn: #f85149;
+        --amber: #f5a524;
+        --teal: #12a594;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, system-ui, sans-serif;
+        font-size: 14px;
+        font-variant-numeric: tabular-nums; /* FM流：桁を揃える等幅数字 */
+      }
+      #app { max-width: 1280px; margin: 0 auto; padding: 0 16px 24px; }
+      header h1 { font-size: 20px; margin: 0 0 4px; }
+      .tag {
+        font-size: 11px; color: var(--accent); border: 1px solid var(--accent);
+        border-radius: 4px; padding: 1px 6px; vertical-align: middle; margin-left: 8px;
+      }
+      .sub { color: var(--muted); margin-bottom: 16px; }
+      /* ===== FM風トップバー（グローバルHUD・固定）＋タブバー ===== */
+      .topbar {
+        position: sticky; top: 0; z-index: 40;
+        display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+        background: linear-gradient(180deg, #10161f, var(--bg));
+        border-bottom: 1px solid var(--border); padding: 8px 4px; margin: 0 -16px;
+        padding-left: 20px; padding-right: 20px;
+      }
+      .tb-brand .tb-co { font-weight: 700; font-size: 15px; }
+      .tb-brand .tb-sub { color: var(--muted); font-size: 11px; }
+      .tb-stats { display: flex; gap: 14px; flex-wrap: wrap; flex: 1; }
+      .tb-stat { display: flex; flex-direction: column; line-height: 1.15; }
+      .tb-stat .k { color: var(--muted); font-size: 10px; }
+      .tb-stat .v { font-size: 15px; font-weight: 700; }
+      .tb-stat.danger .v { color: var(--warn); }
+      .tb-stat .v.thxp, .kpi .v.thxp { color: var(--teal); }
+      .ap-dots { color: var(--accent); letter-spacing: 1px; font-size: 13px; }
+      .tb-actions { display: flex; gap: 6px; }
+      .tb-actions button { padding: 8px 12px; font-size: 13px; }
+      .tb-actions .ghost { padding: 8px 10px; }
+      button.primary { background: var(--accent); }
+      .tabbar {
+        position: sticky; top: 52px; z-index: 39;
+        display: flex; gap: 2px; align-items: center; flex-wrap: wrap;
+        background: var(--bg); border-bottom: 1px solid var(--border);
+        margin: 0 -16px 16px; padding: 0 20px;
+      }
+      .tab {
+        background: transparent; color: var(--muted); border: none; border-bottom: 2px solid transparent;
+        border-radius: 0; padding: 10px 16px; font-size: 13px; font-weight: 600;
+      }
+      .tab:hover { color: var(--text); filter: none; }
+      .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+      .badge { background: var(--warn); color: #fff; border-radius: 8px; font-size: 10px; padding: 0 5px; }
+      .badge.dot { display: inline-block; width: 7px; height: 7px; padding: 0; border-radius: 50%; background: var(--amber); }
+      .tabview { min-height: 60vh; }
+      /* アラート（概要タブ） */
+      .alerts { display: flex; flex-direction: column; gap: 6px; }
+      .alert { font-size: 13px; padding: 6px 10px; background: var(--panel2); border-radius: 6px; border-left: 3px solid var(--accent); }
+      /* 財務内訳 */
+      .fin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      @media (max-width: 720px) { .fin-grid { grid-template-columns: 1fr; } }
+      .fin-col h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+      .fin-total td { font-weight: 700; border-top: 1px solid var(--border); }
+      td.good, .good { color: var(--ca); }
+      td.danger, .danger.fin-total td { color: var(--warn); }
+      .kpis {
+        display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-bottom: 16px;
+      }
+      .kpi {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: 8px; padding: 10px;
+      }
+      .kpi .k { color: var(--muted); font-size: 11px; }
+      .kpi .v { font-size: 18px; font-weight: 700; margin-top: 2px; }
+      .kpi.warn { border-color: var(--warn); }
+      .kpi.warn .v { color: var(--warn); }
+      .controls { display: flex; gap: 10px; margin-bottom: 16px; }
+      button {
+        background: var(--accent); color: #fff; border: none; border-radius: 6px;
+        padding: 10px 18px; font-size: 14px; cursor: pointer; font-weight: 600;
+      }
+      button:hover { filter: brightness(1.1); }
+      button.secondary { background: var(--panel2); border: 1px solid var(--border); }
+      button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(4,1fr); } }
+      .panel {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: 8px; padding: 14px; margin-bottom: 16px;
+      }
+      .panel h2 { font-size: 14px; margin: 0 0 10px; }
+      .legend { font-weight: 400; color: var(--muted); font-size: 11px; margin-left: 8px; }
+      .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin: 0 3px 0 8px; vertical-align: middle; }
+      .legend i.ca { background: var(--ca); }
+      .legend i.pa { background: var(--pa); }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+      th { color: var(--muted); font-size: 11px; font-weight: 600; }
+      td.num { text-align: right; font-variant-numeric: tabular-nums; }
+      td.ca { color: var(--ca); font-weight: 700; }
+      td.pa { color: var(--pa); font-weight: 700; }
+      td.job, td.ctry { color: var(--muted); }
+      td .ca, span.ca { color: var(--ca); font-weight: 700; }
+      td .pa, span.pa { color: var(--pa); font-weight: 700; }
+      .stars { color: #d9a441; letter-spacing: 1px; }
+      /* 段階開示：ぼやけ表現（level1レンジ）／不明（level0） */
+      .blur { filter: blur(0.4px); opacity: 0.7; font-style: italic; }
+      .unknown { color: #4d5661; }
+      .done { color: var(--muted); font-size: 11px; }
+      /* 表内ミニボタン */
+      td.acts { white-space: nowrap; }
+      button.mini {
+        background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+        border-radius: 5px; padding: 4px 8px; font-size: 11px; margin: 0 2px; cursor: pointer;
+        line-height: 1.2; text-align: center;
+      }
+      button.mini:hover { border-color: var(--accent); }
+      button.mini.hire { background: rgba(63,185,80,0.12); border-color: var(--ca); }
+      button.mini .cost { color: var(--muted); font-size: 10px; }
+      select {
+        background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+        border-radius: 5px; padding: 4px 6px; font-size: 12px;
+      }
+      .toast { color: var(--accent); font-size: 13px; align-self: center; margin-left: 8px; }
+      /* 研究＆青写真ツリー */
+      .research-bar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 12px; padding: 10px; background: var(--panel2); border-radius: 6px; }
+      .rb-item { font-size: 12px; color: var(--muted); }
+      .rb-item b { color: var(--text); font-size: 15px; }
+      .bp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+      .bp-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--panel2); }
+      .bp-card .bp-head { font-size: 13px; margin-bottom: 4px; }
+      .bp-card .bp-meta { font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.4; }
+      .bp-tag { font-size: 10px; color: #f0a35e; border: 1px solid #f0a35e; border-radius: 3px; padding: 0 4px; }
+      .bp-state { font-size: 12px; color: var(--muted); }
+      .bp-done { border-color: var(--ca); background: rgba(63,185,80,0.10); }
+      .bp-done .bp-head { color: var(--ca); }
+      .bp-ok { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+      .bp-lock { opacity: 0.6; }
+      .bp-conflict { opacity: 0.55; border-style: dashed; border-color: var(--warn); }
+      /* 青写真tier連鎖（ブランチ） */
+      .branch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+      .branch { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--panel2); }
+      .branch-h { font-size: 12px; margin-bottom: 6px; }
+      .branch-chips { display: flex; gap: 6px; }
+      .bp-chip { flex: 1; border: 1px solid var(--border); border-radius: 6px; padding: 5px; text-align: center; font-size: 11px; }
+      .bp-chip-h { font-size: 10px; margin-bottom: 3px; }
+      .bp-chip .bp-state { font-size: 10px; }
+      .hot { color: var(--warn); font-weight: 700; }
+      button:disabled { opacity: 0.4; cursor: not-allowed; }
+      .sub2 { font-size: 11px; color: var(--muted); }
+      /* 市場シェアバー（sticky=緑実線 / paid=淡色）＋天井マーカー */
+      .share-bar { margin: 10px 0 6px; }
+      .sb-track { position: relative; height: 16px; background: var(--panel2); border-radius: 4px; overflow: hidden; display: flex; }
+      .sb-sticky { height: 100%; background: var(--ca); }
+      .sb-paid { height: 100%; background: rgba(63,185,80,0.35); }
+      .sb-cap { position: absolute; top: -2px; width: 2px; height: 20px; }
+      .sb-cap.earned { background: var(--pa); }
+      .sb-cap.reach { background: var(--accent); opacity: 0.7; }
+      .sb-legend { font-size: 11px; color: var(--muted); margin-top: 4px; }
+      .sb-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin: 0 3px 0 8px; vertical-align: middle; }
+      .sb-legend i.l-sticky { background: var(--ca); }
+      .sb-legend i.l-paid { background: rgba(63,185,80,0.35); }
+      /* マーケ4チャネル */
+      .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 6px; }
+      .ch { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--panel2); }
+      .ch-h { font-size: 13px; margin-bottom: 4px; }
+      .ch-n { font-size: 11px; color: var(--muted); line-height: 1.4; }
+      .rivals { font-size: 11px; color: var(--muted); margin-top: 10px; }
+      /* 製品カード */
+      .prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+      .prod-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--panel2); }
+      .prod-head { font-size: 13px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+      .pch-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+      .pch { font-size: 11px; color: var(--muted); white-space: nowrap; }
+      button.mini.xs { padding: 1px 6px; font-size: 11px; }
+      /* 市場グリッド */
+      tr.mkt-dormant { opacity: 0.4; }
+      /* 氏名クリック */
+      a.pname { color: var(--text); text-decoration: underline dotted; cursor: pointer; }
+      a.pname:hover { color: var(--accent); }
+      /* 実績 */
+      .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+      .ach { display: flex; gap: 8px; align-items: center; padding: 8px; border: 1px solid var(--border); border-radius: 6px; opacity: 0.5; }
+      .ach.got { opacity: 1; border-color: #d9a441; background: rgba(217,164,65,0.08); }
+      .ach-i { font-size: 18px; }
+      .ach-t { display: flex; flex-direction: column; }
+      .ach-t small { color: var(--muted); font-size: 11px; }
+      /* モーダル */
+      .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+      .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; max-width: 720px; width: 100%; max-height: 86vh; overflow-y: auto; }
+      .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; }
+      .modal .muted, .muted { color: var(--muted); font-size: 12px; }
+      .d-kpis { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; font-size: 13px; }
+      .d-note { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+      .d-list .d-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); }
+      .d-acts { display: flex; gap: 8px; margin-top: 10px; }
+      /* 能力バー */
+      .ab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+      .ab-cat h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+      .ab { display: flex; align-items: center; gap: 8px; margin: 3px 0; font-size: 12px; }
+      .ab-l { width: 128px; color: var(--muted); }
+      .ab-track { flex: 1; height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+      .ab-fill { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--ca)); }
+      .ab-v { width: 20px; text-align: right; font-variant-numeric: tabular-nums; }
+      /* ゲームオーバー */
+      .modal.over { text-align: center; max-width: 460px; }
+      .modal.over h2 { color: var(--warn); }
+      .over-stats { display: grid; gap: 6px; margin: 14px 0; font-size: 14px; }
+      .over-ach { color: #d9a441; font-size: 13px; margin-bottom: 14px; }
+      .log .loglines { max-height: 200px; overflow-y: auto; }
+      .log .line { padding: 4px 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+    </style>
+    <script type="module" crossorigin>function st(t){let e=t>>>0;const n=()=>{e|=0,e=e+1831565813|0;let c=Math.imul(e^e>>>15,1|e);return c=c+Math.imul(c^c>>>7,61|c)^c,((c^c>>>14)>>>0)/4294967296},a=(c,d)=>c+n()*(d-c);return{next:n,float:a,int:(c,d)=>Math.floor(c+n()*(d-c+1)),chance:c=>n()<c,normal:(c,d)=>{const b=n()||1e-12,y=n(),A=Math.sqrt(-2*Math.log(b));return c+d*A*Math.cos(2*Math.PI*y)},noise:c=>a(1-c,1+c),nextSeed:()=>Math.floor(n()*4294967295)>>>0}}function ae(t,e,n){const a=t.map(r=>Math.max(0,e(r))),s=a.reduce((r,u)=>r+u,0);if(s<=0)return t[0];let o=n.next()*s;for(let r=0;r<t.length;r++)if(o-=a[r],o<0)return t[r];return t[t.length-1]}const Oe={occupational:.1,mental:.05,condition:.08,hidden:.01},He={occupational:[{age:20,value:1.2},{age:25,value:1.1},{age:30,value:.9},{age:35,value:.5},{age:40,value:.2},{age:45,value:0},{age:50,value:-.15},{age:60,value:-.3},{age:70,value:-.45}],mental:[{age:20,value:.6},{age:30,value:.7},{age:40,value:.8},{age:50,value:.9},{age:60,value:.7},{age:65,value:.3}],condition:[{age:20,value:1},{age:30,value:.8},{age:40,value:.3},{age:45,value:-.2},{age:50,value:-.5},{age:60,value:-.9},{age:70,value:-1.3}],hidden:[{age:0,value:0}]},Ne=[{age:25,value:1},{age:35,value:.8},{age:45,value:.6},{age:55,value:.4},{age:60,value:.2}],Ue={primary:1},qe=[{age:22,value:.5},{age:25,value:.58},{age:30,value:.7},{age:35,value:.85},{age:40,value:.95},{age:45,value:1}],Tt={US:{poolThickness:1,marketSize:1,minWage:1},JP:{poolThickness:.75,marketSize:.55,minWage:.7},DE:{poolThickness:.55,marketSize:.45,minWage:.88},GB:{poolThickness:.5,marketSize:.4,minWage:.85},SG:{poolThickness:.2,marketSize:.1,minWage:.92}},De={dawn:{US:1,JP:.7,DE:.5,GB:.5,SG:.2},internet:{US:1,JP:1,DE:.5,GB:.5,SG:.35},smartphone:{US:1,JP:.5,DE:.5,GB:.5,SG:.5},ai:{US:1,JP:.5,DE:.5,GB:.5,SG:.6}},Ge=1.2,Ke=[{min:80,max:120,ratio:.7,label:"一般"},{min:120,max:150,ratio:.22,label:"優秀"},{min:150,max:170,ratio:.06,label:"一流"},{min:170,max:185,ratio:.018,label:"超一流"},{min:185,max:200,ratio:.002,label:"世代の逸材"}],ht=[{reputationMin:0,reputationMax:20,reachablePaMax:130},{reputationMin:20,reputationMax:50,reachablePaMax:160},{reputationMin:50,reputationMax:80,reachablePaMax:185},{reputationMin:80,reputationMax:100,reachablePaMax:200}],je=200,Qe=1e3,se=72,oe=1.3,ze=.5,We=.15,Ye={engineer:{rookie:3e3,mid:6e3,ace:12e3},designer:{rookie:2500,mid:5e3,ace:1e4},marketer:{rookie:2500,mid:5500,ace:11e3},sales:{rookie:2e3,mid:4500,ace:9e3},finance:{rookie:4e3,mid:8e3,ace:15e3},researcher:{rookie:3e3,mid:6e3,ace:12e3},manager:{rookie:3500,mid:7e3,ace:14e3}},Je=.15,K=[{ap:1,cash:2e3,baseErrorPA:30,baseErrorPersona:5},{ap:2,cash:8e3,baseErrorPA:10,baseErrorPersona:2}],F={hire:1,assign:1,unlockBlueprint:1},Ve=300,Xe={dawn:.6,internet:1,smartphone:1.6,ai:2.2},Ze=.5,tn=.4,en=.6,nn=.15,an=.6,re=300,sn=.2,Ut=[.2,.4,.7,1.1,1.6],on={same:1,adjacent:.5,unrelated:.1},_t=.8,rn=1.6,cn={US:.9,JP:.6,DE:.5,GB:.5,SG:.3},ln=3,un=1.5,dn=.3,pn=1.2,mn=4,hn=.2,D=40,ft=85,fn=2,yn=6,vn=.35,qt=.03,gn=.15,$n=.02,bn=1e3,W=["S1","S2","S3","S4","S5","S6"],N={S1:"Webサービス",S2:"モバイルアプリ",S3:"フィンテック",S4:"生成AI",S5:"EC／マーケット",S6:"福祉・対人"},Mt={S1:{dawn:0,internet:1,smartphone:.9,ai:.7},S2:{dawn:0,internet:.2,smartphone:1.2,ai:1},S3:{dawn:0,internet:.4,smartphone:.9,ai:1.1},S4:{dawn:0,internet:0,smartphone:.2,ai:1.6},S5:{dawn:.3,internet:.9,smartphone:1.1,ai:1},S6:{dawn:.6,internet:.8,smartphone:.9,ai:1}},An=.35,Sn=.7,En=1.4,kn=.45,Pn=.3,Tn=2.5,_n=12,ie=3,ce=40,G={ace:.6,second:.25,rest:.15},yt=.85,Mn=1.15,Cn=6,Rn=.85,Ct=[{ap:1,cash:1500,turns:1,baseError:.35},{ap:2,cash:6e3,turns:2,baseError:.12}],Dt=8,Gt=.15,Ln=.9,Kt=.35,xn=1.9,Bn=.55,wn=.5,jt=.05,Qt=.95,In=.08,Fn=.01,zt=50,On=85,Hn=.6,Nn=.15,Un=.8,qn=.5,Dn=.6,ot=.02,Gn=120,Kn=.05,jn=.6,Qn=3,Wt=[55,72,88,100],zn=.06,Wn=.12,Z=120,vt=1.8,Yn=[0,Z,Math.round(Z*vt),Math.round(Z*vt**2),Math.round(Z*vt**3)],Jn={S1:.6,S6:.15},Vn=.3,Xn=.1,Zn=2,ta=1e3,$t=["dawn","internet","smartphone","ai"],ea=18,na={高自動化:["雇用創出"]},aa=["雇用創出"],sa={Japan:{male:["Haruto","Yuto","Sota","Yuki","Hayato","Ren","Riku","Sho","Kaito","Daiki"],female:["Yui","Aoi","Hina","Sakura","Mei","Rin","Yuna","Akari","Miku","Saki"],surname:["Sato","Suzuki","Takahashi","Tanaka","Watanabe","Ito","Yamamoto","Nakamura","Kobayashi","Kato"]},USA:{male:["Liam","Noah","Oliver","James","Elijah","William","Henry","Lucas","Benjamin","Mason"],female:["Olivia","Emma","Charlotte","Amelia","Sophia","Isabella","Ava","Mia","Evelyn","Luna"],surname:["Smith","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis","Wilson","Anderson"]},England:{male:["Oliver","George","Harry","Jack","Charlie","Thomas","Oscar","William","Henry","Jacob"],female:["Olivia","Amelia","Isla","Ava","Emily","Grace","Sophie","Lily","Freya","Ella"],surname:["Smith","Jones","Taylor","Brown","Williams","Wilson","Johnson","Davies","Robinson","Wright"]},Germany:{male:["Ben","Paul","Leon","Finn","Elias","Jonas","Luka","Felix","Noah","Maximilian"],female:["Emma","Mia","Hannah","Emilia","Sofia","Lina","Marie","Lena","Clara","Anna"],surname:["Muller","Schmidt","Schneider","Fischer","Weber","Meyer","Wagner","Becker","Schulz","Hoffmann"]},China:{male:["Wei","Hao","Jun","Lei","Ming","Yang","Bo","Feng","Tao","Chen"],female:["Fang","Li","Xiu","Yan","Na","Jing","Min","Hui","Ping","Mei"],surname:["Wang","Li","Zhang","Liu","Chen","Yang","Huang","Zhao","Wu","Zhou"]},India:{male:["Aarav","Vivaan","Aditya","Vihaan","Arjun","Sai","Reyansh","Krishna","Ishaan","Rohan"],female:["Saanvi","Aanya","Aadhya","Ananya","Diya","Pari","Anika","Navya","Riya","Ira"],surname:["Sharma","Verma","Patel","Singh","Kumar","Gupta","Reddy","Nair","Rao","Chauhan"]}},oa={JP:["Japan"],US:["USA"],GB:["England"],DE:["Germany"],SG:["China","India","England"]};function ra(t,e,n){const a=oa[t],s=a[n.int(0,a.length-1)],o=sa[s],r=e==="male"?o.male:o.female,u=r[n.int(0,r.length-1)],i=o.surname[n.int(0,o.surname.length-1)];return`${u} ${i}`}function p(t,e,n){return Math.max(e,Math.min(n,t))}function Rt(t){return t.reduce((e,n)=>e+n,0)}function Lt(t,e){if(t.length===1||e<=t[0].age)return t[0].value;const n=t[t.length-1];if(e>=n.age)return n.value;for(let a=0;a<t.length-1;a++){const s=t[a],o=t[a+1];if(e>=s.age&&e<=o.age){const r=(e-s.age)/(o.age-s.age);return s.value+r*(o.value-s.value)}}return n.value}function ia(t,e){const n=Ye[t];return e<=100?n.rookie:e<=150?n.mid:n.ace}function ca(t){return(t-10)/10*Je}function la(t,e,n,a){const s=ia(t,e),o=ca(n),r=Tt[a].minWage;return Math.round(s*(1-o)*r)}const Yt=["engineer","designer","marketer","sales","finance","researcher","manager"],ua={JP:"EA",SG:"SEA",US:"NA",GB:"UK",DE:"EU"};function le(t){const e=[...Object.values(t.occupational),...Object.values(t.mental),...Object.values(t.condition)],n=Rt(e)/e.length;return p(Math.round(10*n),0,200)}function da(t){return Lt(qe,t)}function pa(t){return se+(t.attributes.condition.health-10)*oe}function E(t,e,n=2){return p(Math.round(e.normal(t,n)),1,20)}function ma(t,e,n="p"){const{PA:a,age:s,nationality:o}=t,r=t.sex??(e.chance(.5)?"male":"female"),u=t.jobCategory??Yt[e.int(0,Yt.length-1)],c=p(a*da(s)*e.noise(.05),1,a)/10,d={occupational:{engineering:E(c,e),design:E(c,e),marketing:E(c,e),sales:E(c,e),finance:E(c,e),research:E(c,e),management:E(c,e)},mental:{composure:E(c,e),decisions:E(c,e),determination:E(c,e),concentration:E(c,e),anticipation:E(c,e),creativity:E(c,e),vision:E(c,e),leadership:E(c,e),teamwork:E(c,e),ambition:E(c,e),bravery:E(c,e)},condition:{stamina:E(p(c+(35-s)/15,1,20),e),stressResist:E(c,e),health:E(p(c+(35-s)/15,3,20),e)},hidden:{integrity:e.int(1,20),professionalism:e.int(1,20),adaptability:e.int(1,20),consistency:e.int(1,20),loyalty:e.int(1,20),temperament:e.int(1,20),controversy:e.int(1,20),durability:e.int(1,20)}},b=Math.min(le(d),a);return{id:`${n}-${e.nextSeed().toString(36)}`,name:ra(o,r,e),sex:r,bloodlineId:null,age:s,retirementAge:65,lifeExpectancy:se+(d.condition.health-10)*oe,fertility:0,nationality:o,residence:o,cluster:ua[o],jobCategory:u,assignedRole:null,CA:b,PA:a,attributes:d,salaryDemand:la(u,b,d.hidden.loyalty,t.hireCountry??o),morale:60,reputation:0,scoutLevel:0,languages:[o],contract:null,traits:[],relationToPC:"none",isSuccessorCandidate:!1}}const ha=["US","JP","DE","GB","SG"];function fa(t){for(const e of ht)if(t>=e.reputationMin&&t<e.reputationMax)return e.reachablePaMax;return ht[ht.length-1].reachablePaMax}function ya(t,e,n){const a=t>=150;return ae(ha,s=>{const o=Tt[s].poolThickness;if(a){const r=De[e][s];return o*Math.pow(r,Ge)}return o},n)}function va(t,e){const n=[],a=fa(t.reputation);for(let s=0;s<t.poolSize;s++){const o=ae(Ke,c=>c.ratio,e),r=e.int(o.min,o.max),u=ya(r,t.era,e);if(r>a&&!e.chance(.05))continue;const i=e.int(20,55);n.push(ma({PA:r,age:i,nationality:u,hireCountry:t.hireCountry},e,"pool"))}return n}function bt(t,e){return t.employeeIds.filter(n=>t.assignments[n]===e).map(n=>t.people[n]).filter(Boolean)}function O(t){return t.employeeIds.map(e=>t.people[e]).filter(Boolean)}function ga(t){return t.poolIds.map(e=>t.people[e]).filter(Boolean)}const $a=["US","JP","DE","GB","SG"];function ue(t,e){return`${t}:${e}`}function xt(t){let e=2166136261;for(let n=0;n<t.length;n++)e^=t.charCodeAt(n),e=Math.imul(e,16777619)>>>0;return e>>>0}function nt(t,e,n,a){return xt(`${t}|${e}|${n}|${a}`)/4294967295*2-1}function ba(t){return["dawn","internet","smartphone","ai"].find(n=>Mt[t][n]>0)??"ai"}function Aa(t,e,n){return p(1+An*nt(t,e,n,"bias"),Sn,En)}function rt(t,e){const n=Mt[t.sector][e];return n<=0?0:Ve*Tt[t.country].marketSize*Xe[e]*n*t.biasFactor}function it(t,e,n,a){const s=Kt+(xn-Kt)*p(t,0,1);return p(s*(1+kn*nt(e,n,a,"appeal")),Pn,Tn)}function de(t){return p(Math.round(_n*t),ie,ce)}function Sa(t){return Gt+(1-Gt)*Math.pow(p(t,0,1),Ln)}function J(t,e){return rt(t,e)*Sa(t.maturity)}function Ea(t,e,n,a){const s=st(xt(`${t}|${e}|${n}|entry|${a}`)),o=["Nova","Orbit","Pulse","Quark","Rune","Spark","Titan","Vertex","Wisp","Zenith"];return{id:`${e}:${n}:e${a}`,name:`${o[a%o.length]}${n}`,sector:"same",scaleTier:s.int(1,3),reputationTier:s.int(1,2),aggression:s.float(.35,.9),ambitionFocus:s.chance(.4)?"share":s.chance(.5)?"tech":"expand",share:0,growthProgress:0}}function ka(t,e,n){const a=Jn[e];if(a!=null)return p(a*(1+.15*nt(t,e,n,"mat")),jt,Qt);const s=Mt[e][ba(e)];return p(Bn*s*(1+wn*nt(t,e,n,"mat")),jt,Qt)}function Pa(t,e,n,a){const s=st(xt(`${t}|${e}|${n}|rivals`)),o=["Alpha","Beta","Gamma","Delta","Epsilon","Zeta","Eta","Theta"],r=[],u=p(a,ie,ce);for(let i=0;i<u;i++)r.push({id:`${e}:${n}:r${i}`,name:`${o[i%o.length]}${n}`,sector:"same",scaleTier:s.int(1,3),reputationTier:s.int(1,3),aggression:s.float(.3,.85),ambitionFocus:s.chance(.3)?"share":s.chance(.5)?"tech":"expand",share:0,growthProgress:0});return r}function Ta(t){const e={};for(const n of W)for(const a of $a){const s=Aa(t,n,a),o=ka(t,n,a),r=it(o,t,n,a),u=de(r),i=ue(n,a);e[i]={id:i,sector:n,country:a,biasFactor:s,nearRivals:Pa(t,n,a,u),analysisLevel:0,analyzed:null,lastAnalyzedTurn:null,analysisInProgress:null,maturity:o,entryAccrual:0,nearCountTarget:u,lastDeltaMaturity:0}}return e}function _a(t){return t<60?0:t<=80?(t-60)/20*1.5:1.5+(t-80)/20*3}function Bt(t){const e=t.attributes.condition.stamina/20,n=t.attributes.condition.health/20;return p(.6+.4*e*n,.6,1)}function pe(t){let e=0;for(const n of t)n.assignedRole==="sales"&&(e+=n.attributes.occupational.sales/20*Bt(n));return e}function Ma(t){let e=0;for(const n of t)n.assignedRole==="marketer"&&(e+=n.attributes.occupational.marketing/20);return e}function Ca(t){return tn+en*(t/100)}function wt(t,e,n,a=1){const s=1+zn*(Math.max(1,a)-1);return Ca(t)*(1+nn*pe(e))*(1+an*Math.min(1,n.THxP_customer/re))*(1+sn*(n.reputation/100))*s}function me(t){const e=Ut[p(t.scaleTier,0,Ut.length-1)],n=p(t.aggression+(t.ambitionFocus==="share"?.2:0),0,1),a=on[t.sector];return e*(.6+.1*t.reputationTier)*(.7+.6*n)*a}function ct(t,e,n){const a=it(t.maturity,n,t.sector,t.country);return t.nearRivals.reduce((o,r)=>o+me(r),0)+cn[t.country]*a}function It(t,e){return t/(t+e+_t)}function he(t,e){return Math.min(t/100,e*rn)}function Ra(t){return t<D?0:t<=ft?(t-D)/(ft-D):1+(t-ft)/75}function La(t,e,n,a,s,o,r=1){const u=[],i=J({sector:n.sector,country:n.country,biasFactor:n.biasFactor,maturity:n.maturity},s),c=t.QUAL_p,d=wt(c,e,a,r),b=ct(n,s,o),y=It(d,b),A=he(c,y),T=t.sticky+t.paid,g=T/100,_=y>0?p((y-g)/y,0,1):0,R=A>0?p((A-g)/A,0,1):0;let M=0,S=0,h=0,m=0;const $=t.adBudget/1e3;if($>0)if(c<D){const C=Math.sqrt($)*(D-c)/D;S-=fn*C,m-=yn*C,u.push(`⚠ ${n.id}：低品質(QUAL_p${c.toFixed(0)})への広告が逆噴射。`)}else{const C=Ra(c);M+=ln*Math.sqrt($)*C*(1+.3*Ma(e))*R}const v=t.prBudget/1e3,P=_a(c);P>0&&(S+=un*P*(.3+.7*(T/100))*(.5+.5*Math.min(1,a.THxP_customer/re))*(1+dn*(a.reputation/100))*(1+.5*v)*_);const H=pe(e);if(H>0){const C=pn*H*(.7+.3*(c/100))*_;S+=C,h+=C}const dt=t.commBudget/1e3;dt>0&&(m+=mn*dt,S+=hn*dt*_);let X=t.paid*(1-vn),L=t.sticky-qt*t.sticky,U=t.stickySales*(1-qt);if(L/100>y){const C=gn*(L-y*100);L-=C,U=Math.max(0,U-C*(U/Math.max(1,L+C)))}L=p(L+S,0,y*100),U=p(U+h,0,L);const we=Math.max(0,A*100-L);X=p(X+M,0,we);const Ie=p(L+X,0,100),Fe=n.nearRivals.map(C=>{const Nt=me(C)/(d+b+_t);let pt=C.growthProgress+Nt*$n,mt=C.scaleTier;return pt>=1&&mt<4&&(mt+=1,pt-=1),{...C,share:Nt,scaleTier:mt,growthProgress:pt}});return{product:{...t,sticky:L,paid:X,stickySales:U},nearRivals:Fe,dTHxP:m,events:u,info:{M:i,cP:d,sumCr:b,sEarned:y,sReach:A,TRAC:Ie}}}function xa(t){const e=t.sticky+t.paid;return e<=0?0:p(t.stickySales/e,0,1)}function At(t,e,n){const a=J({sector:e.sector,country:e.country,biasFactor:e.biasFactor,maturity:e.maturity},n),s=(t.sticky+t.paid)/100,o=1+Ze*xa(t);return s*a*je*o}function fe(t){let e=0;for(const n of t.products){const a=t.markets[n.marketId];a&&(e+=At(n,a,t.era))}return e}function Ba(t){return Rt(O(t).map(e=>{var n;return((n=e.contract)==null?void 0:n.salary)??e.salaryDemand}))}function wa(t){return Rt(t.products.map(e=>e.adBudget+e.prBudget+e.commBudget))}function Ft(t){return Ba(t)+Qe+t.company.researchBudget+wa(t)}function Ia(t){const e=fe(t),n=Ft(t),a=t.company.CASH+e-n,s=n>0?a/n:1/0;return{...t,company:{...t.company,CASH:a,monthlyBurn:n,runwayTurns:Math.max(0,s)}}}function lt(t){const e=Ft(t),n=e>0?t.company.CASH/e:1/0;return{...t,company:{...t.company,monthlyBurn:e,runwayTurns:Math.max(0,n)}}}const Fa=[{sector:"S1",tier1Id:"BP-101",tier1Name:"基礎ウェブ",requiredEra:"internet",missionTags:[],requiredLicense:null,qualFormula:[{role:"designer",ability:"design",weight:.5},{role:"engineer",ability:"engineering",weight:.5}],qualPolishAbilities:["creativity","vision"],tierNames:["Webアプリ基盤","SaaSプラットフォーム","大規模Web分散基盤"]},{sector:"S2",tier1Id:"BP-210",tier1Name:"モバイル基盤",requiredEra:"smartphone",missionTags:[],requiredLicense:null,qualFormula:[{role:"engineer",ability:"engineering",weight:.6},{role:"designer",ability:"design",weight:.4}],qualPolishAbilities:["creativity","concentration"],tierNames:["ネイティブアプリ","モバイルSDK","スーパーアプリ基盤"]},{sector:"S3",tier1Id:"BP-330",tier1Name:"フィンテック基礎",requiredEra:"internet",missionTags:[],requiredLicense:"金融ライセンス",qualFormula:[{role:"engineer",ability:"engineering",weight:.5},{role:"finance",ability:"finance",weight:.3},{role:"researcher",ability:"research",weight:.2}],qualPolishAbilities:["decisions","concentration"],tierNames:["決済プラットフォーム","融資エンジン","統合金融基盤"]},{sector:"S4",tier1Id:"BP-450",tier1Name:"生成AI基礎",requiredEra:"ai",missionTags:["高自動化"],requiredLicense:null,qualFormula:[{role:"researcher",ability:"research",weight:.6},{role:"engineer",ability:"engineering",weight:.4}],qualPolishAbilities:["creativity","anticipation"],tierNames:["基盤モデル","エージェント基盤","汎用AI基盤"]},{sector:"S5",tier1Id:"BP-620",tier1Name:"EC基盤",requiredEra:"dawn",missionTags:[],requiredLicense:null,qualFormula:[{role:"engineer",ability:"engineering",weight:.4},{role:"marketer",ability:"marketing",weight:.3},{role:"designer",ability:"design",weight:.3}],qualPolishAbilities:["anticipation","creativity"],tierNames:["マーケットプレイス","物流最適化EC","グローバルEC基盤"]},{sector:"S6",tier1Id:"BP-510",tier1Name:"福祉サービス",requiredEra:"dawn",missionTags:[],requiredLicense:null,qualFormula:[{role:"sales",ability:"sales",weight:.8},{role:"manager",ability:"management",weight:.2}],qualPolishAbilities:["composure","teamwork"],tierNames:["訪問介護network","対人ケア統合","福祉プラットフォーム"]}];function Oa(){const t=[];for(const e of Fa){let n=null;for(let a=1;a<=4;a=a+1){const s=a===1?e.tier1Id:`${e.sector}-t${a}`,o=a===1?e.tier1Name:e.tierNames[a-2];t.push({id:s,name:o,prerequisites:n?[n]:[],requiredEra:e.requiredEra,rpCost:Yn[a],qualBonus:8,missionTags:e.missionTags,requiredLicense:e.requiredLicense,targetSector:e.sector,qualFormula:e.qualFormula,qualPolishAbilities:e.qualPolishAbilities,tier:a,branchId:e.sector}),n=s}}return t}const V=Oa();function ye(t){return V.find(e=>e.targetSector===t&&e.tier===1)}function ut(t){return V.find(e=>e.id===t)}function j(t,e){let n=0;for(const a of e){const s=ut(a);s&&s.targetSector===t&&s.tier>n&&(n=s.tier)}return n}function Ha(t){const e=W.map(n=>j(n,t));return{breadth:e.filter(n=>n>=1).length,depth:Math.max(0,...e)}}function Y(t){return $t.indexOf(t)}function Na(t,e){const n=Y(t),a=Math.floor((e-1)/ea),s=p(n+a,0,$t.length-1);return $t[s]}function Ua(t,e){return Y(e)>=Y(t.requiredEra)}function qa(t,e){for(const n of t.missionTags){const a=na[n];if(a&&a.some(s=>e.includes(s)))return!1}return!0}function ve(t,e,n,a,s){return e.includes(t.id)?"unlocked":qa(t,s)?t.prerequisites.every(o=>e.includes(o))?Ua(t,n)?a<t.rpCost?"rp":"ok":"era":"prereq":"mission"}function ge(t){return p(t/1e3*Xn,0,Zn)}function $e(t,e){const n=ge(e);let a=0;for(const s of t)s.assignedRole==="researcher"&&(a+=s.attributes.occupational.research);return a*Vn*n}function Da(t,e,n){const a=t.filter(i=>i.assignedRole===e).map(i=>i.attributes.occupational[n]*Bt(i)).sort((i,c)=>c-i);if(a.length===0)return 0;if(a.length===1)return a[0];const s=a[0],o=a[1],r=a.slice(2),u=r.length>0?r.reduce((i,c)=>i+c,0)/r.length:0;return G.ace*s+G.second*o+G.rest*u}function Ga(t,e){let n=0;for(const a of t.qualFormula)n+=a.weight*(Da(e,a.role,a.ability)/20);return p(n,0,1)}function Ka(t,e){if(e.length===0)return yt;const n=t.qualPolishAbilities;let a=0,s=0;for(const r of e)for(const u of n)a+=r.attributes.mental[u]*Bt(r),s++;const o=s>0?a/s:0;return p(yt+.3*(o/20),yt,Mn)}function ja(t,e=1){const n=Cn*(1-Wn*(Math.max(1,e)-1));return p(.5+.5*Math.min(1,t/Math.max(1,n)),.5,1)}function Qa(t,e){const n=Math.max(0,Y(e)-Y(t.requiredEra));return Math.pow(Rn,n)}function za(t){return Wt[p(Math.max(1,t),1,Wt.length)-1]}function Ot(t,e,n,a,s=1){const o=ut(t);if(!o)return 0;const r=Ga(o,e),u=Ka(o,e),i=ja(n,s),c=Qa(o,a),d=100*r*u*i*c;return p(Math.min(d,za(s)),0,100)}function be(t={}){const e=t.seed??12345,n=t.country??"US",a=t.era??"internet",s=st(e),o=10,r=va({poolSize:t.poolSize??40,reputation:o,era:a,hireCountry:n},s),u={},i=[];for(const v of r)u[v.id]=v,i.push(v.id);const c=t.hireCount??2,d=[...r].sort((v,P)=>v.salaryDemand-P.salaryDemand),b=["engineer","marketer","designer"],y=[];for(const v of b){if(y.length>=c)break;const P=d.find(H=>H.jobCategory===v&&!y.includes(H));P&&y.push(P)}for(const v of d){if(y.length>=c)break;y.includes(v)||y.push(v)}const A=[];for(const v of y){const P={type:"fulltime",remainingTurns:24,equity:0,salary:v.salaryDemand};u[v.id]={...v,contract:P,morale:60,assignedRole:v.jobCategory},A.push(v.id);const H=i.indexOf(v.id);H>=0&&i.splice(H,1)}const T=e^2654435769,g=Ta(T),_=ue("S5",n),R=A.map(v=>u[v]),M={id:"prod-starter",blueprintId:"BP-620",sector:"S5",country:n,marketId:_,devTurns:3,QUAL_p:0,sticky:8,paid:0,stickySales:0,adBudget:0,prBudget:0,commBudget:0};M.QUAL_p=Ot("BP-620",R,M.devTurns,a,1);const S={};for(const v of A)S[v]=M.id;const h={name:"NewCo",foundedCountry:n,CASH:t.startingCash??12e4,reputation:o,monthlyBurn:0,runwayTurns:0,RP_C:0,researchBudget:0,unlockedBlueprints:["BP-620"],missionTags:[...aa],THxP_customer:0},m={turn:1,era:a,startEra:a,company:h,ap:10,apMax:10,people:u,employeeIds:A,poolIds:i,markets:g,products:[M],assignments:S,rngSeed:s.nextSeed(),marketSeed:T,log:[],gameOver:!1,endTurn:null,profitStreak:0,achievements:[]},$=Ft(m);return m.company.monthlyBurn=$,m.company.runwayTurns=$>0?m.company.CASH/$:1/0,m}function Wa(t){const e=(t-50)/50*.15;return{factor:p(1+e,.5,1.5)}}function Ya(t){return Lt(Ne,t)}function Ja(t){const e=t.attributes,n=e.mental.ambition*Ya(t.age),a=.5+(e.hidden.professionalism*.4+e.mental.determination*.3+n*.3)/20;return p(a,.5,1.5)}function Va(t,e,n,a){const s=Oe[e],o=Lt(He[e],t.age);let r;o<0||e==="hidden"?r=1:r=t.PA>0?p((t.PA-t.CA)/t.PA,0,1):0;const u=Ja(t);return s*o*r*u*n.factor*a}function Xa(t,e){const n=["occupational","mental","condition"],a={occupational:{...t.attributes.occupational},mental:{...t.attributes.mental},condition:{...t.attributes.condition},hidden:{...t.attributes.hidden}};for(const o of n){const r=Va(t,o,e,Ue.primary),u=a[o];for(const i of Object.keys(u))u[i]=p(u[i]+r,1,20)}const s={...t,attributes:a};return s.CA=Math.min(le(a),t.PA),s}function Ae(t){return p(1.5-t/20,.5,1.45)}function Za(t){let e=0;for(let n=0;n<t.length;n++)e=e*31+t.charCodeAt(n)&4294967295;return(e>>>0)%1e3/1e3-.5}function Jt(t,e,n,a,s){const o=t+Za(n)*e;return{low:Math.round(p(o-e,a,s)),high:Math.round(p(o+e,a,s))}}function ts(t){const e=Object.values(t.attributes.occupational),n=e.reduce((a,s)=>a+s,0)/e.length;return p(Math.round(n/4),1,5)}function et(t,e){const n=t.scoutLevel,a=ts(t);if(n===0)return{scoutLevel:0,occStars:a,caKnown:null,paKnown:null,paRange:null,loyaltyKnown:null,loyaltyRange:null,controversyKnown:null};if(n===1){const s=Ae(e),o=K[0].baseErrorPA*s,r=K[0].baseErrorPersona*s;return{scoutLevel:1,occStars:a,caKnown:t.CA,paKnown:null,paRange:Jt(t.PA,o,t.id+"PA",1,200),loyaltyKnown:null,loyaltyRange:Jt(t.attributes.hidden.loyalty,r,t.id+"LO",1,20),controversyKnown:null}}return{scoutLevel:2,occStars:a,caKnown:t.CA,paKnown:t.PA,paRange:null,loyaltyKnown:t.attributes.hidden.loyalty,loyaltyRange:null,controversyKnown:t.attributes.hidden.controversy}}function Se(t){const e=t.filter(r=>r.assignedRole==="researcher").map(r=>r.attributes.occupational.research).sort((r,u)=>u-r),n=e.length>0?e:t.map(r=>r.attributes.occupational.research).sort((r,u)=>u-r);if(n.length===0)return 0;if(n.length===1)return n[0]*(e.length>0?1:.7);const a=n.slice(2),s=a.length>0?a.reduce((r,u)=>r+u,0)/a.length:0,o=G.ace*n[0]+G.second*n[1]+G.rest*s;return e.length>0?o:o*.7}function es(t){let e=0;for(let n=0;n<t.length;n++)e=e*31+t.charCodeAt(n)&4294967295;return(e>>>0)%1e3/1e3-.5}function ns(t,e,n,a,s){const o=a*Ae(s),r=J({sector:t.sector,country:t.country,biasFactor:t.biasFactor,maturity:t.maturity},e),u=it(t.maturity,n,t.sector,t.country),i=es(t.id)*o;return{M:Math.max(0,r*(1+i)),densityIndex:Math.max(0,u*(1+i)),errorPct:o}}function as(t,e){return{low:t*(1-e),high:t*(1+e)}}function ss(t,e,n,a,s,o){const r=ye(t.sector);if(!r||!e.unlockedBlueprints.includes(r.id))return null;const u=j(t.sector,e.unlockedBlueprints),i=o?o.QUAL_p:Ot(r.id,n,0,a,u),c=wt(i,n,e,u),d=ct(t,a,s);return It(c,d)}function os(t,e,n){if(n==null)return 0;const a=t/(e+_t)*n;return p(a*2,0,100)}function rs(t){return p((t-zt)/(On-zt),0,1)}function is(t){return p(t.scaleTier/4*.6+t.reputationTier/4*.4,0,1)}function cs(t,e){const n=e?(e.sticky+e.paid)/100:0,a=e?n*rs(e.QUAL_p):0;let s=0;for(const o of t.nearRivals)s+=o.share*is(o);return a+Hn*p(s,0,1)}function ls(t,e){const n=cs(t,e),a=In*n*(1-t.maturity)-Fn*t.maturity;return{maturity:p(t.maturity+a,0,1),delta:a}}function us(t){const e=p(t.lastDeltaMaturity/ot,0,1),n=p(t.entryAccrual,0,1);return p(.5*e+.5*n,0,1)}function St(t){return p(Math.round(Dt*(1-jn*us(t))),Qn,Dt)}function ds(t,e,n){return 1+Un*(t/ot)+qn*(e/Gn)+Dn*n}function ps(t,e,n,a,s){const{maturity:o,delta:r}=ls(t,e),u=J({sector:t.sector,country:t.country,biasFactor:t.biasFactor,maturity:o},a),i=it(o,s,t.sector,t.country),c=de(i),b=(e?(e.sticky+e.paid)/100:0)*(n.reputation/100),y=Math.max(0,c-t.nearRivals.length),A=ds(r,u,b);let T=t.entryAccrual+Nn*y*A,g=t.nearRivals;const _=Math.floor(T);if(_>0&&g.length<c){const R=Math.min(_,c-g.length),M=[];for(let S=0;S<R;S++)M.push(Ea(s,t.sector,t.country,g.length+S));g=[...g,...M],T-=R}if(g.length>c){const R=Math.round(Kn*(g.length-c));R>0&&(g=g.slice(0,g.length-R))}return{market:{...t,maturity:o,lastDeltaMaturity:r,entryAccrual:T,nearCountTarget:c,nearRivals:g}}}const Q=[{id:"first-hire",label:"はじめての仲間",desc:"初めて社員を採用する",predicate:t=>t.employeeIds.length>=1},{id:"first-blueprint",label:"最初の設計図",desc:"2つ目以降の青写真を解放する",predicate:t=>t.company.unlockedBlueprints.length>=2},{id:"qual-80",label:"高品質プロダクト",desc:"いずれかの製品QUAL_pが80に到達",predicate:t=>t.products.some(e=>e.QUAL_p>=80)},{id:"multi-market",label:"多角化",desc:"3つ以上の市場に製品を持つ",predicate:t=>t.products.length>=3},{id:"analyst",label:"市場を読む者",desc:"いずれかの市場を精密分析(Lv2)",predicate:t=>Object.values(t.markets).some(e=>e.analysisLevel>=2)},{id:"profitable",label:"黒字化",desc:"12ターン連続で黒字を出す",predicate:t=>t.profitStreak>=12},{id:"cash-100k",label:"資金 $100k",desc:"会社CASHが $100,000 到達",predicate:t=>t.company.CASH>=1e5},{id:"cash-500k",label:"資金 $500k",desc:"会社CASHが $500,000 到達",predicate:t=>t.company.CASH>=5e5},{id:"cash-1m",label:"資金 $1M",desc:"会社CASHが $1,000,000 到達",predicate:t=>t.company.CASH>=1e6},{id:"team-10",label:"チーム10人",desc:"従業員が10人に到達",predicate:t=>t.employeeIds.length>=10},{id:"all-blueprints",label:"全技術制覇",desc:"全ての青写真を解放",predicate:t=>t.company.unlockedBlueprints.length>=V.length}];function Ee(t){return Q.find(e=>e.id===t)}function ke(t){const e=[];for(const n of Q)t.achievements.includes(n.id)||n.predicate(t)&&e.push(n);return e.length===0?{state:t,newly:e}:{state:{...t,achievements:[...t.achievements,...e.map(n=>n.id)]},newly:e}}function Vt(t){if(t.gameOver)return{next:t,events:[]};const e=st(t.rngSeed),n=[];let a=t;const s={...a.people},o=Wa(60);for(const h of Object.keys(s)){const m=s[h],$={...m,age:m.age+1/12};$.lifeExpectancy=pa($),s[h]=$}for(const h of a.employeeIds){const m=s[h];m&&(s[h]=Xa(m,o))}a={...a,people:s};const r=Na(a.startEra,a.turn);r!==a.era&&n.push(`時代が進行：${a.era} → ${r}。新青写真が解放条件を満たし、旧技術は陳腐化。`),a={...a,era:r};const u=O(a),i=$e(u,a.company.researchBudget),c=a.company.RP_C+i;let d=a.company.reputation;for(const h of u){const m=.003*(h.attributes.hidden.controversy/20);if(e.chance(m)){const $=25*e.float(.5,1.5)*.4;d=p(d-$,0,100),n.push(`不祥事発生：${h.name} が問題行動。評判 −${Math.round($)}。`)}}a={...a,company:{...a.company,reputation:d,RP_C:c}},a=ms(a,n);{const h={...a.markets},m={};for(const $ of a.products)m[$.marketId]=$;for(const $ of Object.keys(h)){const v=h[$],P=ps(v,m[$]??null,a.company,a.era,a.marketSeed);h[$]=P.market,Math.floor(P.market.maturity*4)>Math.floor(v.maturity*4)&&n.push(`市場成長：${$} が成熟（${(P.market.maturity*100).toFixed(0)}%）。実効パイ拡大・ライバル流入増。`)}a={...a,markets:h}}let b=a.products.map(h=>{const m=bt(a,h.id),$=h.devTurns+(m.length>0?1:0),v=j(h.sector,a.company.unlockedBlueprints),P=Ot(h.blueprintId,m,$,a.era,v);return{...h,devTurns:$,QUAL_p:P}});const y={...a.markets};let A=0;b=b.map(h=>{const m=y[h.marketId];if(!m)return h;const $=bt(a,h.id),v=j(h.sector,a.company.unlockedBlueprints),P=La(h,$,m,a.company,a.era,a.marketSeed,v);return y[h.marketId]={...m,nearRivals:P.nearRivals},A+=P.dTHxP,n.push(...P.events),P.product});const T=Math.max(0,a.company.THxP_customer+A);a={...a,products:b,markets:y,company:{...a.company,THxP_customer:T}};const g=a.company.CASH;a=Ia(a);const _=a.company.CASH-g;a.company.CASH<0&&n.push(`資金がマイナスに転落（CASH=${Math.round(a.company.CASH)}）。資金ショート危機。`),a=fs(a,e,n);const R=_>=0?a.profitStreak+1:0;a={...a,ap:a.apMax,turn:a.turn+1,rngSeed:e.nextSeed(),profitStreak:R};const M=Math.round(fe(a));n.unshift(`ターン${a.turn}：売上+${M} / バーン-${Math.round(a.company.monthlyBurn)} → CASH ${Math.round(a.company.CASH)}`),a.company.CASH<0&&!a.gameOver&&(a={...a,gameOver:!0,endTurn:a.turn},n.push(`【ゲームオーバー】資金ショート。ターン${a.turn}で事業は幕を閉じた。`));const S=ke(a);a=S.state;for(const h of S.newly)n.push(`🏆 実績解除：${h.label}（${h.desc}）`);return a={...a,log:[...a.log,...n]},{next:a,events:n}}function ms(t,e){const n={...t.markets};for(const a of Object.keys(n)){let s=n[a];if(s.analysisInProgress){const o=s.analysisInProgress,r=o.turnsLeft-1;if(r<=0){const u=Ct[o.targetLevel-1],i=ns(s,t.era,t.marketSeed,u.baseError,o.analystSkill);s={...s,analysisLevel:o.targetLevel,analyzed:i,lastAnalyzedTurn:t.turn,analysisInProgress:null},e.push(`市場分析 完了：${a} → Lv${o.targetLevel}（規模・競合密度を開示）`)}else s={...s,analysisInProgress:{...o,turnsLeft:r}}}if(s.analysisLevel>0&&s.lastAnalyzedTurn!=null&&!s.analysisInProgress&&t.turn-s.lastAnalyzedTurn>=St(s)){const r=s.analysisLevel-1;s={...s,analysisLevel:r,analyzed:r===0?null:s.analyzed,lastAnalyzedTurn:r===0?null:t.turn},e.push(`市場情報が陳腐化：${a} → Lv${r}（再分析が必要）`)}n[a]=s}return{...t,markets:n}}function hs(t,e){var r;const n=t.attributes.hidden.loyalty,a=t.attributes.mental.ambition,s=((r=t.contract)==null?void 0:r.salary)??t.salaryDemand,o=p((t.salaryDemand-s)/Math.max(1,t.salaryDemand)+1,.5,2);return(20-n)/20*(a/20)*o*((100-t.morale)/100)*e}function fs(t,e,n){let a=t;const s=.7;for(const o of[...a.employeeIds]){const r=a.people[o];if(!r)continue;const u=hs(r,s);if(!(u<We)&&e.chance(u*ze)){const i={...r,contract:null,assignedRole:null};a={...a,people:{...a.people,[o]:i},employeeIds:a.employeeIds.filter(c=>c!==o)},n.push(`引き抜き：${r.name}（忠誠${r.attributes.hidden.loyalty}）がライバルへ移籍。`)}}return a}function f(t,e){return{state:t,ok:!1,message:e}}function Pe(t){const e=O(t);return e.length===0?10:Math.max(...e.map(n=>Math.max(n.attributes.occupational.management,n.attributes.occupational.research)))}function Ht(t,e){return{...t.people,[e.id]:e}}function ys(t,e){const n=t.people[e];if(!n)return f(t,"対象が見つかりません。");if(n.scoutLevel>=2)return f(t,`${n.name}は既に精密調査済みです。`);const a=K[n.scoutLevel];if(t.ap<a.ap)return f(t,`APが足りません（必要${a.ap}AP）。`);if(t.company.CASH<a.cash)return f(t,`資金が足りません（必要$${a.cash}）。`);const s=n.scoutLevel+1,o={...n,scoutLevel:s},r=s===1?"簡易スカウト":"精密デューデリ";return{state:{...t,ap:t.ap-a.ap,company:{...t.company,CASH:t.company.CASH-a.cash},people:Ht(t,o)},ok:!0,message:`${r}実施：${n.name}（-${a.ap}AP / -$${a.cash}）→ Lv${s}`}}function vs(t,e){const n=t.people[e];if(!n)return f(t,"対象が見つかりません。");if(!t.poolIds.includes(e))return f(t,`${n.name}は候補プールにいません。`);if(t.ap<F.hire)return f(t,`APが足りません（必要${F.hire}AP）。`);const a=n.salaryDemand,o={...n,contract:{type:"fulltime",remainingTurns:24,equity:0,salary:a},morale:60,assignedRole:null};return{state:lt({...t,ap:t.ap-F.hire,people:Ht(t,o),employeeIds:[...t.employeeIds,e],poolIds:t.poolIds.filter(r=>r!==e)}),ok:!0,message:`採用：${n.name}（月給$${a}）を雇用。`}}function gs(t,e,n){const a=t.people[e];if(!a)return f(t,"対象が見つかりません。");if(!t.employeeIds.includes(e))return f(t,`${a.name}は社員ではありません。`);if(t.ap<F.assign)return f(t,`APが足りません（必要${F.assign}AP）。`);const s={...a,assignedRole:n};return{state:{...t,ap:t.ap-F.assign,people:Ht(t,s)},ok:!0,message:`配属：${a.name} → ${n}`}}function $s(t,e){return t.products.map(n=>n.id===e.id?e:n)}const Xt={adBudget:"広告",prBudget:"PR/口コミ",commBudget:"コミュニティ"};function bs(t,e,n,a){const s=t.products.find(i=>i.id===e);if(!s)return f(t,"製品が見つかりません。");const o=s[n],r=Math.max(0,o+a*bn);if(r===o)return f(t,`${Xt[n]}予算はこれ以上下げられません。`);const u={...s,[n]:r};return{state:lt({...t,products:$s(t,u)}),ok:!0,message:`${s.marketId}の${Xt[n]}予算を $${r}/ターン に。`}}function As(t,e,n){const a=ut(e);if(!a)return f(t,"青写真が見つかりません。");if(!t.company.unlockedBlueprints.includes(a.id))return f(t,`${a.name}は未解放です。`);const s=`${a.targetSector}:${n}`,o=t.markets[s];if(!o)return f(t,"その市場は存在しません。");if(rt({sector:o.sector,country:o.country,biasFactor:o.biasFactor},t.era)<=0)return f(t,`${a.name}の市場（${s}）は現時代では未成立です。`);if(t.products.some(i=>i.marketId===s))return f(t,`${s}には既に製品があります。`);if(t.ap<1)return f(t,"APが足りません（必要1AP）。");const r=2e3;if(t.company.CASH<r)return f(t,`資金が足りません（設立$${r}）。`);const u={id:`prod-${e}-${n}-${t.turn}`,blueprintId:e,sector:a.targetSector,country:n,marketId:s,devTurns:0,QUAL_p:0,sticky:3,paid:0,stickySales:0,adBudget:0,prBudget:0,commBudget:0};return{state:lt({...t,ap:t.ap-1,company:{...t.company,CASH:t.company.CASH-r},products:[...t.products,u]}),ok:!0,message:`製品投入：『${a.name}』を ${s} へ（-1AP / -$${r}）。担当を配属しよう。`}}function Ss(t,e,n){var r;if(!t.employeeIds.includes(e))return f(t,"社員ではありません。");if(n&&!t.products.some(u=>u.id===n))return f(t,"製品が見つかりません。");const a={...t.assignments};n?a[e]=n:delete a[e];const s=((r=t.people[e])==null?void 0:r.name)??e,o=t.products.find(u=>u.id===n);return{state:{...t,assignments:a},ok:!0,message:n?`${s} を製品『${o==null?void 0:o.marketId}』へ配属。`:`${s} の製品配属を解除。`}}function Es(t,e){const n=t.markets[e];if(!n)return f(t,"市場が見つかりません。");if(n.analysisInProgress)return f(t,`${e}は分析中です。`);if(n.analysisLevel>=2)return f(t,`${e}は精密分析済みです。`);const a=Se(O(t));if(a<=0)return f(t,"分析担当（研究能力を持つ社員）が必要です。");const s=n.analysisLevel+1,o=Ct[s-1];if(t.ap<o.ap)return f(t,`APが足りません（必要${o.ap}AP）。`);if(t.company.CASH<o.cash)return f(t,`資金が足りません（必要$${o.cash}）。`);const r={...t.markets,[e]:{...n,analysisInProgress:{targetLevel:s,turnsLeft:o.turns,analystSkill:a}}},u=s===1?"市場スキャン":"精密市場分析";return{state:{...t,ap:t.ap-o.ap,company:{...t.company,CASH:t.company.CASH-o.cash},markets:r},ok:!0,message:`${u}開始：${e}（-${o.ap}AP / -$${o.cash} / ${o.turns}ターン後に完了）`}}function ks(t,e){const n=Math.max(0,t.company.researchBudget+e*ta);return n===t.company.researchBudget?f(t,"研究予算はこれ以上下げられません。"):{state:lt({...t,company:{...t.company,researchBudget:n}}),ok:!0,message:`研究投資予算を $${n}/ターン に設定。`}}function Ps(t,e){const n=ut(e);if(!n)return f(t,"青写真が見つかりません。");const a=t.company;switch(ve(n,a.unlockedBlueprints,t.era,a.RP_C,a.missionTags)){case"unlocked":return f(t,`${n.name}は解放済みです。`);case"mission":return f(t,`${n.name}はミッション（${a.missionTags.join("・")}）と衝突し選べません。`);case"prereq":return f(t,`${n.name}は前提青写真（${n.prerequisites.join(",")}）が未解放です。`);case"era":return f(t,`${n.name}は時代（${n.requiredEra}）に未到達です。`);case"rp":return f(t,`RPが足りません（必要${n.rpCost} / 保有${Math.floor(a.RP_C)}）。`)}return t.ap<F.unlockBlueprint?f(t,`APが足りません（必要${F.unlockBlueprint}AP）。`):{state:{...t,ap:t.ap-F.unlockBlueprint,company:{...a,RP_C:a.RP_C-n.rpCost,unlockedBlueprints:[...a.unlockedBlueprints,n.id]}},ok:!0,message:`青写真『${n.name}』を解放（-${n.rpCost}RP）→ ${n.targetSector}市場に製品を出せる`}}const Et="0.4";function Ts(t){const e={version:Et,savedAt:Date.now(),state:t};return JSON.stringify(e)}function _s(t){const e=JSON.parse(t);if(!e||typeof e!="object"||!e.state)throw new Error("セーブデータが不正です。");if(e.version!==Et)throw new Error(`セーブのバージョンが一致しません（${e.version} ≠ ${Et}）。`);return e.state}const gt="slg-proto-save",kt={save(t){try{return localStorage.setItem(gt,Ts(t)),!0}catch{return!1}},load(){try{const t=localStorage.getItem(gt);return t?_s(t):null}catch{return null}},has(){try{return localStorage.getItem(gt)!=null}catch{return!1}}},Zt=["US","JP","DE","GB","SG"],B={JP:"日本",US:"米国",GB:"英国",DE:"独国",SG:"星国"},Te={dawn:"黎明期",internet:"インターネット期",smartphone:"スマホ普及期",ai:"AI革新期"},z={engineer:"エンジニア",designer:"デザイナー",marketer:"マーケター",sales:"セールス",finance:"財務",researcher:"リサーチャー",manager:"マネージャー"},Ms=["engineer","designer","marketer","sales","finance","researcher","manager"];function _e(){var e;const t=globalThis;return(e=t.crypto)!=null&&e.getRandomValues?t.crypto.getRandomValues(new Uint32Array(1))[0]>>>0:(Math.floor(Math.random()*4294967295)^Date.now())>>>0}let l=be({seed:_e(),country:"US"}),I="",q=null;const Cs=[{id:"overview",label:"概要"},{id:"talent",label:"人材"},{id:"market",label:"市場分析"},{id:"products",label:"製品"},{id:"research",label:"研究・青写真"},{id:"finance",label:"財務・組織"},{id:"achievements",label:"実績"}];let at="overview";const k=t=>Math.round(t).toLocaleString(),Pt=t=>isFinite(t)?`${t.toFixed(1)} ヶ月`:"∞",Me=t=>"★".repeat(t)+"☆".repeat(5-t);function Rs(){const t=ke(l);l=t.state,t.newly.length>0&&(I=`🏆 実績解除：${t.newly.map(e=>e.label).join(" / ")}`)}function w(t){l=t.state,I=t.message,Rs(),x()}function Ls(t){var o;const e=B[t.nationality]??t.nationality,n=Ms.map(r=>`<option value="${r}" ${t.assignedRole===r?"selected":""}>${z[r]}</option>`).join(""),a=l.assignments[t.id]??"",s='<option value="">（未配属）</option>'+l.products.map(r=>`<option value="${r.id}" ${a===r.id?"selected":""}>${N[r.sector]}×${B[r.country]}</option>`).join("");return`<tr>
+    <td class="name"><a class="pname" data-person="${t.id}">${t.name}</a></td>
+    <td>${z[t.jobCategory]}</td>
+    <td class="num">${t.age.toFixed(1)}</td>
+    <td class="ctry">${e}</td>
+    <td class="num ca">${t.CA}</td>
+    <td class="num pa">${t.PA}</td>
+    <td class="num">$${k(((o=t.contract)==null?void 0:o.salary)??0)}</td>
+    <td><select data-assign="${t.id}">${n}</select></td>
+    <td><select data-passign="${t.id}">${s}</select></td>
+  </tr>`}function Ce(t){return t.caKnown!=null?`<span class="ca">${t.caKnown}</span>`:'<span class="unknown">?</span>'}function Re(t){return t.paKnown!=null?`<span class="pa">${t.paKnown}</span>`:t.paRange?`<span class="pa blur">${t.paRange.low}–${t.paRange.high}</span>`:'<span class="unknown">?</span>'}function Le(t){return t.loyaltyKnown!=null?`<span>${t.loyaltyKnown}</span>`:t.loyaltyRange?`<span class="blur">${t.loyaltyRange.low}–${t.loyaltyRange.high}</span>`:'<span class="unknown">?</span>'}function xs(t,e){const n=B[t.nationality]??t.nationality,a=t.scoutLevel<2?K[t.scoutLevel]:null,s=a?`<button class="mini" data-scout="${t.id}">スカウトLv${t.scoutLevel+1}<br><span class="cost">${a.ap}AP/$${k(a.cash)}</span></button>`:'<span class="done">調査済</span>';return`<tr>
+    <td class="name"><a class="pname" data-person="${t.id}">${t.name}</a></td>
+    <td>${z[t.jobCategory]}</td>
+    <td class="num">${t.age.toFixed(1)}</td>
+    <td class="ctry">${n}</td>
+    <td class="stars">${Me(e.occStars)}</td>
+    <td class="num">${Ce(e)}</td>
+    <td class="num">${Re(e)}</td>
+    <td class="num">${Le(e)}</td>
+    <td class="num">$${k(t.salaryDemand)}</td>
+    <td class="acts">${s}<button class="mini hire" data-hire="${t.id}">採用<br><span class="cost">1AP</span></button></td>
+  </tr>`}const Bs={occupational:"① 専門技能",mental:"② メンタル",condition:"③ コンディション",hidden:"④ 人格・隠し"},ws={engineering:"エンジニアリング",design:"デザイン",marketing:"マーケティング",sales:"セールス",finance:"財務",research:"リサーチ",management:"マネジメント",composure:"冷静さ",decisions:"判断力",determination:"決断力",concentration:"集中力",anticipation:"先読み",creativity:"創造性",vision:"ビジョン",leadership:"統率力",teamwork:"協調性",ambition:"野心",bravery:"度胸",stamina:"体力",stressResist:"ストレス耐性",health:"健康",integrity:"誠実さ",professionalism:"プロ意識",adaptability:"順応性",consistency:"一貫性",loyalty:"忠誠",temperament:"気性",controversy:"問題行動性",durability:"頑健さ"};function Is(t,e){const n=e/20*100;return`<div class="ab"><span class="ab-l">${t}</span><span class="ab-track"><span class="ab-fill" style="width:${n}%"></span></span><span class="ab-v">${e}</span></div>`}function tt(t,e){const n=e[t],a=Object.keys(n).map(s=>Is(ws[s]??s,n[s])).join("");return`<div class="ab-cat"><h4>${Bs[t]}</h4>${a}</div>`}function Fs(){var s;if(!q)return"";const t=l.people[q];if(!t)return"";const e=B[t.nationality]??t.nationality,n=l.employeeIds.includes(t.id);let a;if(n)a=`
+      <div class="d-kpis">
+        <span><b class="ca">CA ${t.CA}</b> / <b class="pa">PA ${t.PA}</b></span>
+        <span>忠誠 ${t.attributes.hidden.loyalty} / 士気 ${t.morale}</span>
+        <span>月給 $${k(((s=t.contract)==null?void 0:s.salary)??0)}</span>
+        <span>配属 ${t.assignedRole?z[t.assignedRole]:"未配属"}</span>
+      </div>
+      <div class="ab-grid">
+        ${tt("occupational",t.attributes)}
+        ${tt("mental",t.attributes)}
+        ${tt("condition",t.attributes)}
+        ${tt("hidden",t.attributes)}
+      </div>`;else{const o=et(t,Pe(l)),r=(i,c)=>`<div class="d-row"><span>${i}</span><span>${c}</span></div>`;a=`
+      <div class="d-note">${o.scoutLevel===0?"未スカウト：専門技能の星のみ。CA・PA・人格はスカウトで開示されます。":o.scoutLevel===1?"簡易スカウト済：PA・忠誠はぼやけたレンジ。精密調査で正確値に。":"精密調査済：正確値を開示。"}</div>
+      <div class="d-list">
+        ${r("専門技能（概算）",`<span class="stars">${Me(o.occStars)}</span>`)}
+        ${r("CA（現在能力）",Ce(o))}
+        ${r("PA（潜在能力）",Re(o))}
+        ${r("忠誠",Le(o))}
+        ${r("問題行動性",o.controversyKnown!=null?`${o.controversyKnown}`:'<span class="unknown">?</span>')}
+      </div>
+      <div class="d-acts">
+        ${o.scoutLevel<2?`<button class="mini" data-scout="${t.id}">スカウトLv${o.scoutLevel+1}<br><span class="cost">${K[o.scoutLevel].ap}AP/$${k(K[o.scoutLevel].cash)}</span></button>`:'<span class="done">調査済</span>'}
+        <button class="mini hire" data-hire="${t.id}">採用<br><span class="cost">1AP</span></button>
+      </div>`}return`<div class="modal-bg" data-close="1">
+    <div class="modal">
+      <div class="modal-head">
+        <div><b>${t.name}</b> <span class="muted">${z[t.jobCategory]} / ${t.age.toFixed(1)}歳 / ${e} / ${n?"自社社員（フル開示）":"採用候補"}</span></div>
+        <button class="mini" data-close="1">✕</button>
+      </div>
+      ${a}
+    </div>
+  </div>`}function Os(t,e){const n=e==="unlocked"?"bp-done":e==="ok"?"bp-ok":e==="mission"?"bp-conflict":"bp-lock",a=[55,72,88,100][t.tier-1],s=e==="ok"?`<button class="mini" data-unlock="${t.id}">解放<br><span class="cost">${t.rpCost}RP</span></button>`:e==="unlocked"?'<span class="bp-state">✓済</span>':e==="prereq"?'<span class="bp-state">前提待</span>':e==="era"?`<span class="bp-state">${Te[t.requiredEra]}待</span>`:e==="mission"?'<span class="bp-state">衝突</span>':`<span class="bp-state">RP${t.rpCost}</span>`;return`<div class="bp-chip ${n}" title="QUAL_p天井${a}">
+    <div class="bp-chip-h">t${t.tier} ${t.name}</div>${s}</div>`}function Hs(){const t=l.company,e=$e(O(l),t.researchBudget),n=ge(t.researchBudget),a=Ha(t.unlockedBlueprints),s=W.map(o=>{const r=V.filter(d=>d.targetSector===o).sort((d,b)=>d.tier-b.tier),u=j(o,t.unlockedBlueprints),i=r.map(d=>Os(d,ve(d,t.unlockedBlueprints,l.era,t.RP_C,t.missionTags))).join(""),c=r[0].qualFormula.map(d=>`${z[d.role]}`).join("+");return`<div class="branch">
+      <div class="branch-h">${N[o]} <span class="muted">tier${u}到達 / 品質規定 ${c}</span></div>
+      <div class="branch-chips">${i}</div>
+    </div>`}).join("");return`<section class="panel">
+    <h2>研究＆青写真ツリー（特化 vs 汎用）
+      <span class="legend">tier1=参入切符（QUAL_p天井55）→ 深掘りで天井↑・C_p↑・展開速い。広さ(切符)と深さ(特化)へ有限RPを配分（要望⑤）</span></h2>
+    <div class="research-bar">
+      <div class="rb-item">RP_C <b>${Math.floor(t.RP_C)}</b></div>
+      <div class="rb-item">研究投資 <b>$${k(t.researchBudget)}</b>/ターン
+        <button class="mini" data-rbudget="-1">−$1,000</button>
+        <button class="mini" data-rbudget="1">＋$1,000</button></div>
+      <div class="rb-item">研究投資係数 <b>${n.toFixed(1)}</b></div>
+      <div class="rb-item">RP産出 <b>+${e.toFixed(1)}</b>/T</div>
+      <div class="rb-item">breadth(切符) <b>${a.breadth}</b> / depth(最深) <b>${a.depth}</b></div>
+    </div>
+    <div class="branch-grid">${s}</div>
+  </section>`}function Ns(){const t=l.company,e=l.products.map(n=>{const a=l.markets[n.marketId],s=bt(l,n.id),o=n.sticky+n.paid,r=j(n.sector,t.unlockedBlueprints),u=a?wt(n.QUAL_p,s,t,r):0,i=a?ct(a,l.era,l.marketSeed):0,c=It(u,i)*100,d=he(n.QUAL_p,c/100)*100,b=[55,72,88,100][Math.max(1,r)-1],y=n.QUAL_p<40&&n.adBudget>0,A=a?`市場成熟${(a.maturity*100).toFixed(0)}%`:"",T=(g,_)=>`
+      <span class="pch">${_} $${k(n[g])}
+        <button class="mini xs" data-mbudget="${n.id}:${g}:-1">−</button>
+        <button class="mini xs" data-mbudget="${n.id}:${g}:1">＋</button></span>`;return`<div class="prod-card">
+      <div class="prod-head"><b>${N[n.sector]} × ${B[n.country]}</b>
+        <span class="muted">QUAL_p <b class="pa">${n.QUAL_p.toFixed(0)}</b>/天井${b}(t${r}) / 開発${n.devTurns}T / 担当${s.length}名 / ${A}</span></div>
+      <div class="share-bar">
+        <div class="sb-track">
+          <div class="sb-sticky" style="width:${n.sticky}%"></div>
+          <div class="sb-paid" style="width:${n.paid}%"></div>
+          <div class="sb-cap earned" style="left:${Math.min(100,c)}%"></div>
+          <div class="sb-cap reach" style="left:${Math.min(100,d)}%"></div>
+        </div>
+        <div class="sb-legend"><i class="l-sticky"></i>sticky${n.sticky.toFixed(1)} <i class="l-paid"></i>paid${n.paid.toFixed(1)} ＝シェア${o.toFixed(1)}% / 上限 s*${c.toFixed(0)}%（到達${d.toFixed(0)}%）</div>
+      </div>
+      ${y?'<div class="d-note" style="color:var(--warn)">⚠ QUAL_p&lt;40への広告は逆噴射。先に品質(担当能力)を。</div>':""}
+      <div class="pch-row">${T("adBudget","📣広告")}${T("prBudget","🗣PR")}${T("commBudget","🌱ｺﾐｭﾆﾃｨ")}
+        <span class="pch">🤝セールス ${s.some(g=>g.assignedRole==="sales")?"稼働":"無"}</span></div>
+    </div>`}).join("");return`<section class="panel">
+    <h2>自社製品（${l.products.length}）<span class="legend">製品QUAL_p＝担当チームの能力で決まる（青写真の品質規定式）。市場ごとにシェアを争う</span></h2>
+    <div class="prod-grid">${e||"<div class='muted'>製品なし。青写真を解放し分析ページから市場へ投入しよう。</div>"}</div>
+    <div class="muted" style="margin-top:8px">顧客THxP（全製品共有）：<b>${t.THxP_customer.toFixed(0)}</b></div>
+  </section>`}function Us(t){const e=l.company,n=O(l),a=ye(t.sector),s=!!a&&e.unlockedBlueprints.includes(a.id),o=l.products.find(m=>m.marketId===t.id)??null,r=J({sector:t.sector,country:t.country,biasFactor:t.biasFactor,maturity:t.maturity},l.era),u=rt({sector:t.sector,country:t.country,biasFactor:t.biasFactor},l.era)<=0,i=t.analysisLevel>=1;let c='<span class="unknown">？</span>',d='<span class="unknown">？</span>',b='<span class="unknown">？</span>';if(t.analysisLevel>=2&&t.analyzed)c=`${t.analyzed.M.toFixed(0)}`,d=te(t.analyzed.densityIndex),b=ee(t.maturity);else if(t.analysisLevel===1&&t.analyzed){const m=as(t.analyzed.M,t.analyzed.errorPct);c=`<span class="blur">${m.low.toFixed(0)}–${m.high.toFixed(0)}</span>`,d=`<span class="blur">${te(t.analyzed.densityIndex)}</span>`,b=`<span class="blur">${ee(t.maturity)}</span>`}let y="—",A="—";const T=ct(t,l.era,l.marketSeed),g=i&&s?ss(t,e,n,l.era,l.marketSeed,o):null;let _="—",R="—";if(t.analysisLevel>=2&&!u){const m=1-t.maturity;y=qs(m,t.lastDeltaMaturity),g!=null?(_=`${(g*100).toFixed(0)}%`,R=`<b>${os(r,T,g).toFixed(0)}</b>`):_=`<span class="muted">要${(a==null?void 0:a.id)??"BP"}</span>`,A=Ds(t,g,u)}let M="";if(t.analysisInProgress)M=`<span class="muted">分析中(残${t.analysisInProgress.turnsLeft}T)</span>`;else if(t.analysisLevel<2){const m=Ct[t.analysisLevel];M=`<button class="mini" data-analyze="${t.id}">分析Lv${t.analysisLevel+1}<br><span class="cost">${m.ap}AP/$${k(m.cash)}</span></button>`}let S="";o?S='<span class="done">投入済</span>':u?S='<span class="muted">未成立</span>':s?S=`<button class="mini hire" data-launch="${a.id}:${t.country}">投入<br><span class="cost">1AP/$2k</span></button>`:S=`<span class="muted">要${(a==null?void 0:a.id)??"BP"}取得</span>`;let h="";if(t.analysisLevel>0&&t.lastAnalyzedTurn!=null){const m=St(t)-(l.turn-t.lastAnalyzedTurn);St(t)<8?h=` <span class="hot" title="ホット市場：分析が早く古びる">⚡${Math.max(0,m)}</span>`:m<=2&&(h=" ⏳")}return`<tr class="${u?"mkt-dormant":""}">
+    <td>${N[t.sector]}</td>
+    <td class="ctry">${B[t.country]}</td>
+    <td>Lv${t.analysisLevel}${h}</td>
+    <td>${b}</td>
+    <td class="num">${c}</td>
+    <td>${d}</td>
+    <td>${y}</td>
+    <td class="num">${_}</td>
+    <td class="num">${R}</td>
+    <td>${A}</td>
+    <td class="acts">${M}</td>
+    <td class="acts">${S}</td>
+  </tr>`}function te(t){return t<.6?`空き(${t.toFixed(1)})`:t<1.2?`平均(${t.toFixed(1)})`:t<1.8?`混雑(${t.toFixed(1)})`:`激戦(${t.toFixed(1)})`}function ee(t){const e=(t*100).toFixed(0);return t<.25?`未成熟(${e}%)`:t<.55?`成長期(${e}%)`:t<.8?`成熟(${e}%)`:`飽和(${e}%)`}function qs(t,e){const n=e>ot*.5?" 📈":"";return t>.6?`大${n}`:t>.3?`中${n}`:`小${n}`}function Ds(t,e,n){var r;if(n)return"—";const a=1-t.maturity,s=((r=t.analyzed)==null?void 0:r.densityIndex)??1,o=t.lastDeltaMaturity>ot;return t.maturity<.35&&a>.5&&s<1?e==null?'🌱<span class="muted">要切符</span>':"🌱先取り":o||t.nearCountTarget-t.nearRivals.length>3?"⏳もうすぐ混む":t.maturity>.6&&s>1.3?"🏔️激戦":t.maturity<.35&&a<=.5?"💤伸びない":"・"}function Gs(){const t=Se(O(l)),e=Object.values(l.markets).filter(n=>rt({sector:n.sector,country:n.country,biasFactor:n.biasFactor},l.era)>0).sort((n,a)=>W.indexOf(n.sector)-W.indexOf(a.sector)||Zt.indexOf(n.country)-Zt.indexOf(a.country)).map(Us).join("");return`<section class="panel">
+    <h2>市場分析ページ（セクター×国・動的市場）
+      <span class="legend">未分析＝霧＝博打。分析で成熟度・実効パイ・成長・参入圧・戦略ラベルを開示。分析スキル(research) <b>${t.toFixed(1)}</b></span></h2>
+    <div class="muted" style="margin-bottom:6px">🌱=今は小さいが伸びる（先取り推奨）／⏳=もうすぐ混む（地固め急げ）／🏔️=大きいが激戦（特化向き）／💤=伸びない罠。⚡=ホット市場で分析がすぐ古びる。規模Mは実効パイ（M_eff）。</div>
+    <table>
+      <thead><tr><th>セクター</th><th>国</th><th>分析</th><th>成熟度</th><th>実効パイ</th><th>競合密度</th><th>成長</th><th>自社fit</th><th>機会</th><th>戦略</th><th>分析実行</th><th>製品投入</th></tr></thead>
+      <tbody>${e}</tbody>
+    </table>
+  </section>`}function Ks(){const t=l.achievements.length,e=Q.map(n=>{const a=l.achievements.includes(n.id);return`<div class="ach ${a?"got":""}"><span class="ach-i">${a?"🏆":"🔒"}</span>
+      <span class="ach-t"><b>${n.label}</b><small>${n.desc}</small></span></div>`}).join("");return`<section class="panel">
+    <h2>実績（自己目標）<span class="legend">${t}/${Q.length} 達成 ── サンドボックス：勝利条件はなく自己目標を追う</span></h2>
+    <div class="ach-grid">${e}</div>
+  </section>`}function js(){if(!l.gameOver)return"";const t=l.company,e=l.achievements.map(n=>{var a;return(a=Ee(n))==null?void 0:a.label}).filter(Boolean);return`<div class="modal-bg">
+    <div class="modal over">
+      <h2>ゲームオーバー — 資金ショート</h2>
+      <p class="muted">ターン ${l.endTurn} で会社の資金が尽きました（サンドボックス：勝敗なし）。</p>
+      <div class="over-stats">
+        <div>到達ターン <b>${l.endTurn}</b></div>
+        <div>製品数 <b>${l.products.length}</b> / 最高QUAL_p <b>${Math.max(0,...l.products.map(n=>n.QUAL_p)).toFixed(0)}</b></div>
+        <div>解放青写真 <b>${t.unlockedBlueprints.length}/${V.length}</b></div>
+        <div>獲得実績 <b>${e.length}/${Q.length}</b></div>
+      </div>
+      <div class="over-ach">${e.length?"🏆 "+e.join(" / "):"（実績なし）"}</div>
+      <button id="newgameOver">新規開始</button>
+    </div>
+  </div>`}function Qs(){const t=l.company,e=isFinite(t.runwayTurns)&&t.runwayTurns<=6?"danger":"",n="●".repeat(Math.max(0,l.ap))+"○".repeat(Math.max(0,l.apMax-l.ap));return`<div class="topbar">
+    <div class="tb-brand">
+      <div class="tb-co">${t.name}</div>
+      <div class="tb-sub">${B[t.foundedCountry]} / ${Te[l.era]} / T${l.turn}</div>
+    </div>
+    <div class="tb-stats">
+      <div class="tb-stat"><span class="k">CASH</span><span class="v">$${k(t.CASH)}</span></div>
+      <div class="tb-stat ${e}"><span class="k">ランウェイ</span><span class="v">${Pt(t.runwayTurns)}</span></div>
+      <div class="tb-stat"><span class="k">バーン</span><span class="v">$${k(t.monthlyBurn)}</span></div>
+      <div class="tb-stat"><span class="k">AP</span><span class="v ap-dots">${n}</span></div>
+      <div class="tb-stat"><span class="k">評判</span><span class="v">${t.reputation.toFixed(0)}</span></div>
+      <div class="tb-stat"><span class="k">THxP</span><span class="v thxp">${t.THxP_customer.toFixed(0)}</span></div>
+    </div>
+    <div class="tb-actions">
+      <button id="nextTurn" class="primary" ${l.gameOver?"disabled":""}>▶ 次のターン</button>
+      <button id="next6" class="secondary" ${l.gameOver?"disabled":""}>▶▶6</button>
+      <button id="save" class="ghost" title="セーブ">💾</button>
+      <button id="load" class="ghost" ${kt.has()?"":"disabled"} title="ロード">📂</button>
+      <button id="newgame" class="ghost" title="新規開始">🆕</button>
+    </div>
+  </div>
+  <div class="tabbar">
+    ${Cs.map(a=>`<button class="tab ${at===a.id?"active":""}" data-tab="${a.id}">${a.label}${zs(a.id)}</button>`).join("")}
+    <span class="toast">${I}</span>
+  </div>`}function zs(t){return t==="overview"?isFinite(l.company.runwayTurns)&&l.company.runwayTurns<=6?' <span class="badge">!</span>':"":t==="talent"&&l.ap>0&&l.employeeIds.some(e=>!l.assignments[e])?' <span class="badge dot"></span>':""}function xe(){const t=O(l);return`<section class="panel">
+    <h2>在籍社員（${t.length}名）<span class="legend"><i class="ca"></i>CA <i class="pa"></i>PA　役割＝能力の種類 / 製品配属＝どの製品のQUAL_pに効くか　氏名クリックで詳細</span></h2>
+    <table>
+      <thead><tr><th>氏名</th><th>職種</th><th>年齢</th><th>国籍</th><th>CA</th><th>PA</th><th>月給</th><th>役割</th><th>製品配属</th></tr></thead>
+      <tbody>${t.map(Ls).join("")}</tbody>
+    </table>
+  </section>`}function Ws(){const t=Pe(l),e=ga(l).slice().sort((n,a)=>et(a,t).occStars-et(n,t).occStars).slice(0,16);return`<section class="panel">
+    <h2>採用市場（全${l.poolIds.length}名から抜粋・分析スキル ${t.toFixed(1)}）
+      <span class="legend">氏名クリックで詳細。未スカウトはCA・PAも不明 → スカウトで「星→ぼやけ→正確値」開示</span></h2>
+    <table>
+      <thead><tr><th>氏名</th><th>職種</th><th>年齢</th><th>国籍</th><th>技能</th><th>CA</th><th>PA</th><th>忠誠</th><th>要求給与</th><th>操作</th></tr></thead>
+      <tbody>${e.map(n=>xs(n,et(n,t))).join("")}</tbody>
+    </table>
+  </section>`}function Be(){return`<section class="panel log">
+    <h2>ログ</h2>
+    <div class="loglines">${l.log.slice(-14).reverse().map(t=>`<div class="line">${t}</div>`).join("")}</div>
+  </section>`}function ne(){const t=l.company,e=isFinite(t.runwayTurns)&&t.runwayTurns<=6?"warn":"",n=l.products.reduce((r,u)=>r+u.sticky+u.paid,0),a=l.products.length?Math.max(...l.products.map(r=>r.QUAL_p)):0,s=[];e&&s.push(`🔴 ランウェイ ${Pt(t.runwayTurns)}：資金ショート接近。売上を上げるか支出を絞る。`);for(const r of l.products)r.QUAL_p<40&&r.adBudget>0&&s.push(`🟠 ${N[r.sector]}×${B[r.country]}：低QUAL_pへの広告が逆噴射中。`);l.ap>0&&s.push(`🔵 AP ${l.ap} 残：スカウト・分析・製品投入に使えます。`);const o=l.achievements.slice(-4).map(r=>{var u;return(u=Ee(r))==null?void 0:u.label}).filter(Boolean);return`
+    <section class="kpis">
+      <div class="kpi"><div class="k">ターン</div><div class="v">${l.turn}</div></div>
+      <div class="kpi"><div class="k">CASH</div><div class="v">$${k(t.CASH)}</div></div>
+      <div class="kpi ${e}"><div class="k">ランウェイ</div><div class="v">${Pt(t.runwayTurns)}</div></div>
+      <div class="kpi"><div class="k">月次バーン</div><div class="v">$${k(t.monthlyBurn)}</div></div>
+      <div class="kpi"><div class="k">製品数</div><div class="v">${l.products.length}</div></div>
+      <div class="kpi"><div class="k">総シェア</div><div class="v">${n.toFixed(0)}<small class="sub2">%</small></div></div>
+      <div class="kpi"><div class="k">最高QUAL_p</div><div class="v">${a.toFixed(0)}</div></div>
+      <div class="kpi"><div class="k">RP_C</div><div class="v">${Math.floor(t.RP_C)}</div></div>
+      <div class="kpi"><div class="k">顧客THxP</div><div class="v thxp">${t.THxP_customer.toFixed(0)}</div></div>
+      <div class="kpi"><div class="k">評判</div><div class="v">${t.reputation.toFixed(0)}</div></div>
+      <div class="kpi"><div class="k">連続黒字</div><div class="v">${l.profitStreak}</div></div>
+      <div class="kpi"><div class="k">実績</div><div class="v">${l.achievements.length}/${Q.length}</div></div>
+    </section>
+    <section class="panel">
+      <h2>アラート <span class="legend">「今なにをすべきか」</span></h2>
+      <div class="alerts">${s.length?s.map(r=>`<div class="alert">${r}</div>`).join(""):'<div class="muted">重大な警告はありません。分析→市場選択→製品投入を進めましょう。</div>'}</div>
+      ${o.length?`<div class="muted" style="margin-top:8px">最近の実績：🏆 ${o.join(" / ")}</div>`:""}
+    </section>
+    ${Be()}`}function Ys(){const t=l.company,e=O(l).reduce((i,c)=>{var d;return i+(((d=c.contract)==null?void 0:d.salary)??0)},0),n=l.products.reduce((i,c)=>i+c.adBudget+c.prBudget+c.commBudget,0),a=l.products.reduce((i,c)=>{const d=l.markets[c.marketId];return i+(d?At(c,d,l.era):0)},0),s=t.monthlyBurn-e-t.researchBudget-n,o=a-t.monthlyBurn,r=l.products.map(i=>{const c=l.markets[i.marketId],d=c?At(i,c,l.era):0;return`<tr><td>${N[i.sector]}×${B[i.country]}</td><td class="num">${(i.sticky+i.paid).toFixed(1)}%</td><td class="num good">+$${k(d)}</td></tr>`}).join(""),u=l.products.map(i=>`
+    <tr>
+      <td>${N[i.sector]}×${B[i.country]}</td>
+      ${["adBudget","prBudget","commBudget"].map(c=>`
+        <td class="num">$${k(i[c])}
+          <button class="mini xs" data-mbudget="${i.id}:${c}:-1">−</button>
+          <button class="mini xs" data-mbudget="${i.id}:${c}:1">＋</button></td>`).join("")}
+    </tr>`).join("");return`
+    <section class="panel">
+      <h2>収支内訳（月次）<span class="legend">売上＝Σ製品売上 − バーン＝Σ給与＋固定費＋研究＋マーケ</span></h2>
+      <div class="fin-grid">
+        <div class="fin-col">
+          <h4>売上（製品別）</h4>
+          <table><tbody>${r||'<tr><td class="muted">製品なし</td></tr>'}
+            <tr class="fin-total"><td>売上合計</td><td></td><td class="num good">+$${k(a)}</td></tr></tbody></table>
+        </div>
+        <div class="fin-col">
+          <h4>支出内訳</h4>
+          <table><tbody>
+            <tr><td>給与合計</td><td class="num">−$${k(e)}</td></tr>
+            <tr><td>固定費</td><td class="num">−$${k(s)}</td></tr>
+            <tr><td>研究投資 <button class="mini xs" data-rbudget="-1">−</button><button class="mini xs" data-rbudget="1">＋</button></td><td class="num">−$${k(t.researchBudget)}</td></tr>
+            <tr><td>マーケ予算合計</td><td class="num">−$${k(n)}</td></tr>
+            <tr class="fin-total"><td>バーン合計</td><td class="num">−$${k(t.monthlyBurn)}</td></tr>
+            <tr class="fin-total ${o>=0?"good":"danger"}"><td>純損益</td><td class="num">${o>=0?"+":"−"}$${k(Math.abs(o))}</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>製品別マーケ予算（広告 / PR / コミュニティ）<span class="legend">毎ターンのバーンに加算。チャネルの使い分け＝戦略</span></h2>
+      <table>
+        <thead><tr><th>製品（市場）</th><th>📣広告(paid)</th><th>🗣PR(sticky)</th><th>🌱コミュニティ(THxP)</th></tr></thead>
+        <tbody>${u||'<tr><td class="muted">製品なし</td></tr>'}</tbody>
+      </table>
+    </section>
+    ${xe()}`}function Js(){switch(at){case"overview":return ne();case"talent":return Ws()+xe();case"market":return Gs();case"products":return Ns()+Be();case"research":return Hs();case"finance":return Ys();case"achievements":return Ks();default:return ne()}}function x(){var n,a,s,o,r,u;const t=document.getElementById("app");if(!t)return;t.innerHTML=`
+    ${Qs()}
+    <main class="tabview">${Js()}</main>
+    ${Fs()}
+    ${js()}
+  `,t.querySelectorAll("[data-tab]").forEach(i=>i.addEventListener("click",()=>{at=i.dataset.tab,x()})),(n=document.getElementById("nextTurn"))==null||n.addEventListener("click",()=>{l=Vt(l).next,I="",x()}),(a=document.getElementById("next6"))==null||a.addEventListener("click",()=>{for(let i=0;i<6;i++)l=Vt(l).next;I="",x()});const e=()=>{l=be({seed:_e(),country:"US"}),I="新規開始しました。",q=null,at="overview",x()};(s=document.getElementById("save"))==null||s.addEventListener("click",()=>{I=kt.save(l)?"セーブしました。":"セーブに失敗しました。",x()}),(o=document.getElementById("load"))==null||o.addEventListener("click",()=>{const i=kt.load();i?(l=i,I="ロードしました。",q=null):I="セーブが見つかりません。",x()}),(r=document.getElementById("newgame"))==null||r.addEventListener("click",e),(u=document.getElementById("newgameOver"))==null||u.addEventListener("click",e),t.querySelectorAll("[data-person]").forEach(i=>i.addEventListener("click",()=>{q=i.dataset.person,x()})),t.querySelectorAll("[data-close]").forEach(i=>i.addEventListener("click",c=>{c.target===i&&(q=null,x())})),t.querySelectorAll("[data-scout]").forEach(i=>i.addEventListener("click",()=>w(ys(l,i.dataset.scout)))),t.querySelectorAll("[data-hire]").forEach(i=>i.addEventListener("click",()=>w(vs(l,i.dataset.hire)))),t.querySelectorAll("[data-assign]").forEach(i=>i.addEventListener("change",()=>w(gs(l,i.dataset.assign,i.value)))),t.querySelectorAll("[data-passign]").forEach(i=>i.addEventListener("change",()=>w(Ss(l,i.dataset.passign,i.value||null)))),t.querySelectorAll("[data-unlock]").forEach(i=>i.addEventListener("click",()=>w(Ps(l,i.dataset.unlock)))),t.querySelectorAll("[data-rbudget]").forEach(i=>i.addEventListener("click",()=>w(ks(l,Number(i.dataset.rbudget))))),t.querySelectorAll("[data-mbudget]").forEach(i=>i.addEventListener("click",()=>{const[c,d,b]=i.dataset.mbudget.split(":");w(bs(l,c,d,Number(b)))})),t.querySelectorAll("[data-analyze]").forEach(i=>i.addEventListener("click",()=>w(Es(l,i.dataset.analyze)))),t.querySelectorAll("[data-launch]").forEach(i=>i.addEventListener("click",()=>{const[c,d]=i.dataset.launch.split(":");w(As(l,c,d))}))}x();</script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>
