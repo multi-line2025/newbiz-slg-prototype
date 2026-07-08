@@ -14,10 +14,14 @@ import { pickWeighted } from "./prng";
 import type { Person, PlayableCountry, Era } from "./model/types";
 import {
   PA_TIERS,
+  LABOR_PA_TIERS,
+  LABOR_AGE_MIN,
+  LABOR_AGE_MAX,
   REPUTATION_GATES,
   COUNTRY_FACTORS,
   GDP_BY_ERA,
   GDP_ALPHA,
+  type Archetype,
 } from "./model/constants";
 import { buildPerson } from "./person";
 
@@ -60,22 +64,27 @@ export interface PoolConfig {
   reputation: number; // 会社評判（到達可能ティアを決める）
   era: Era;
   hireCountry?: PlayableCountry; // 要求給与の基準となる起業国
+  archetype?: Archetype; // v0.9・A：labor は低スキル(低PA×若年)の労働者プールを生成
 }
 
 /**
  * 人材プールを生成する（仕様 §4.10.5）。
+ * labor 業態では低スキル層(LABOR_PA_TIERS＝低PA・若年)を生成し、安く数のいる労働者を潤沢に出す。
+ * knowledge 業態は現行の PA_TIERS 分布・年齢幅のまま（非回帰）。
  * @returns 生成された Person 配列（評判ゲートを通過したもの）
  */
 export function generateTalentPool(cfg: PoolConfig, rng: PRNG): Person[] {
   const pool: Person[] = [];
   const gateMax = reachablePaMax(cfg.reputation);
+  const labor = cfg.archetype === "labor";
+  const tiers = labor ? LABOR_PA_TIERS : PA_TIERS;
 
   for (let i = 0; i < cfg.poolSize; i++) {
-    // (1) PA帯を希少性分布から抽選し、帯内で一様にPAを決める
-    const tier = pickWeighted(PA_TIERS, (t) => t.ratio, rng);
+    // (1) PA帯を希少性分布から抽選し、帯内で一様にPAを決める（labor=低PA帯）
+    const tier = pickWeighted(tiers, (t) => t.ratio, rng);
     const PA = rng.int(tier.min, tier.max);
 
-    // (2) 国籍抽選（高PAはGDP偏り）
+    // (2) 国籍抽選（高PAはGDP偏り。laborは全員<150なので厚み係数のみ）
     const nationality = pickNationality(PA, cfg.era, rng);
 
     // (3) 到達可能性ゲート：評判で届く上限PAを超える人材は原則除外
@@ -85,7 +94,8 @@ export function generateTalentPool(cfg: PoolConfig, rng: PRNG): Person[] {
       if (!exception) continue;
     }
 
-    const age = rng.int(20, 55);
+    // labor は若年中心（低成熟度＝低CA＋stamina/healthの年齢ボーナスで基礎資質は確保）
+    const age = labor ? rng.int(LABOR_AGE_MIN, LABOR_AGE_MAX) : rng.int(20, 55);
     pool.push(
       buildPerson(
         { PA, age, nationality, era: cfg.era, hireCountry: cfg.hireCountry },

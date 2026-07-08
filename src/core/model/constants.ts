@@ -509,7 +509,24 @@ export const KLABOR_CONS = 8; // 現場の一貫性(avgConsistency/20)でQUAL微
 export const KLABOR_MGMT_Q = 6; // 現場管理(bestManagement/20)でQUAL微増（最大+6）
 
 // §3.4 競争力はスループット主導（qualCoreの代替）
-export const QLABOR_CORE = 1.05; // 労働集約C_pの芯（頭数6名で序盤黒字化＝初心者向け。損益分岐T4〜13）
-export const KLABOR_TH = 0.5; // 頭数(laborCapacity)1あたり競争力+50%＝頭数=主レバー
+export const QLABOR_CORE = 0.95; // 労働集約C_pの芯（頭数8名前提。KLABOR_TH引上げに合わせ微減）
+export const KLABOR_TH = 1.0; // 頭数(laborCapacity)1あたり競争力+100%＝頭数を出力へ直結（v0.9・B）
 // §3.2 現場管理の乗算（頭数の代替にはしない、まとめ役の底上げ）
 export const KLABOR_MGMT = 0.35; // bestManagement/20 で laborCapacity を最大+35%
+// v0.9・B：労働集約の直販＝“さばける量を売る”。稼働力(laborCapacity)で顧客を直接獲得する
+//  （口コミ/品質に依存しない）。頭数を増やすほど客足が目に見えて速く伸びる主レバー。
+export const KLABOR_ACQ = 2.5; // laborCapacity1あたりの直接獲得係数（×roomで上限に漸近）
+
+/* ------------------------------------------------------------
+ * v0.9・A：本物の「低スキル人材」層（労働集約プール専用）
+ *  知識集約プール(PA_TIERS)は現行のまま。労働は“安く数のいる未熟練者”を生成する。
+ *  CA = PA × 成熟度(age) なので、低PA×若年で CA を genuinely 低く（目安30〜60）。
+ *  若年は stamina/health に年齢ボーナスが乗り、単純作業の基礎資質(laborThroughput)は確保される。
+ * ------------------------------------------------------------ */
+export const LABOR_PA_TIERS: PaTier[] = [
+  { min: 50, max: 75, ratio: 0.5, label: "未熟練" }, // 大半：安い頭数
+  { min: 70, max: 95, ratio: 0.4, label: "見習い" }, // そこそこ動ける
+  { min: 90, max: 115, ratio: 0.1, label: "一般" },  // 少数：現場管理候補になり得る
+];
+export const LABOR_AGE_MIN = 19; // 労働者は若年中心（stamina/health年齢ボーナス＋低CA）
+export const LABOR_AGE_MAX = 30;

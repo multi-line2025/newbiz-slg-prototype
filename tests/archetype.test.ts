@@ -11,7 +11,7 @@ import { productCompetitiveness } from "../src/core/market";
 import { reachablePaMax } from "../src/core/talentPool";
 import { initGame } from "../src/core/init";
 import { advanceTurn } from "../src/core/turn";
-import { productTeam } from "../src/core/state";
+import { productTeam, poolPeople } from "../src/core/state";
 import { getBlueprint } from "../src/core/research";
 import { buildPerson } from "../src/core/person";
 import { makePRNG } from "../src/core/prng";
@@ -101,12 +101,12 @@ describe("業態分岐（computeQualP / productCompetitiveness）", () => {
 });
 
 describe("開始業態選択（initGame archetype 分岐）", () => {
-  it("labor：業態labor・創業青写真BP-700・6名（現場管理1名含む）", () => {
+  it("labor：業態labor・創業青写真BP-700・8名（現場管理1名含む）", () => {
     const s = initGame({ seed: 7, archetype: "labor" });
     expect(s.archetype).toBe("labor");
     expect(s.products[0].blueprintId).toBe("BP-700");
     expect(s.company.unlockedBlueprints).toContain("BP-700");
-    expect(s.employeeIds.length).toBe(6);
+    expect(s.employeeIds.length).toBe(8); // v0.9：頭数を8名へ（安い低スキル）
     const team = productTeam(s, s.products[0].id);
     expect(team.some((p) => p.jobCategory === "manager")).toBe(true); // 現場管理
   });
@@ -129,6 +129,59 @@ describe("開始業態選択（initGame archetype 分岐）", () => {
     expect(s.gameOver).toBe(false); // 生存
     expect(sawProfit).toBe(true);   // 黒字ターンあり
     expect(s.company.CASH).toBeGreaterThan(0);
+  });
+});
+
+describe("v0.9・A：本物の低スキル人材層（labor プール）", () => {
+  const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+
+  it("labor開始チームの平均CAは knowledge開始チームより明確に低い", () => {
+    for (const seed of [12345, 1, 2, 3, 42]) {
+      const L = initGame({ seed, archetype: "labor" });
+      const K = initGame({ seed });
+      const laborCA = avg(productTeam(L, L.products[0].id).map((p) => p.CA));
+      const knowCA = avg(productTeam(K, K.products[0].id).map((p) => p.CA));
+      expect(laborCA).toBeLessThan(knowCA); // ユーザー指摘「CAが変わらない」の解消
+      expect(laborCA).toBeLessThan(65);     // 目安30〜60の低CA帯
+    }
+  });
+
+  it("labor プールは安く数のいる低CA労働者で満たされる（頭数をスケール可能）", () => {
+    const s = initGame({ seed: 3, archetype: "labor" });
+    const pool = poolPeople(s);
+    expect(pool.length).toBeGreaterThanOrEqual(20); // 潤沢
+    expect(avg(pool.map((p) => p.CA))).toBeLessThan(60); // 全体的に低スキル
+    // 単純作業の基礎資質（体力/健康）は年齢ボーナスで確保されている
+    const okCondition = pool.filter((p) => p.attributes.condition.stamina + p.attributes.condition.health >= 8);
+    expect(okCondition.length).toBeGreaterThan(pool.length * 0.5);
+  });
+
+  it("knowledge プールは現行分布のまま（非回帰・平均CAが labor より高い）", () => {
+    const k = poolPeople(initGame({ seed: 3 }));
+    const l = poolPeople(initGame({ seed: 3, archetype: "labor" }));
+    expect(avg(k.map((p) => p.CA))).toBeGreaterThan(avg(l.map((p) => p.CA)));
+  });
+});
+
+describe("v0.9・B：頭数→出力の直結（稼働力で客足が伸びる）", () => {
+  it("配属人数を増やすほど laborCapacity→シェア→売上が単調に伸びる", () => {
+    const results = [3, 5, 8].map((heads) => {
+      let s = initGame({ seed: 3, archetype: "labor" });
+      const team = productTeam(s, "prod-starter");
+      const keep = team.slice(0, heads).map((p) => p.id);
+      const assignments: Record<string, string> = {};
+      for (const id of keep) assignments[id] = "prod-starter";
+      s = { ...s, employeeIds: keep, assignments };
+      const cap = laborCapacity(productTeam(s, "prod-starter"));
+      for (let t = 0; t < 8; t++) s = advanceTurn(s).next;
+      const share = s.products[0].sticky + s.products[0].paid;
+      return { heads, cap, share };
+    });
+    // 頭数↑ → 稼働力↑ → シェア↑（＝出力が目に見えて伸びる）
+    expect(results[1].cap).toBeGreaterThan(results[0].cap);
+    expect(results[2].cap).toBeGreaterThan(results[1].cap);
+    expect(results[1].share).toBeGreaterThan(results[0].share);
+    expect(results[2].share).toBeGreaterThan(results[1].share);
   });
 });
 

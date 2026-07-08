@@ -36,8 +36,9 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
 
   // 会社評判は初期は無名（10）
   const reputation = 10;
+  // labor は低スキル労働者を潤沢に出すため試行数を増やす（頭数をスケールできる在庫）
   const pool = generateTalentPool(
-    { poolSize: opts.poolSize ?? 40, reputation, era, hireCountry: country },
+    { poolSize: opts.poolSize ?? (archetype === "labor" ? 60 : 40), reputation, era, hireCountry: country, archetype },
     rng
   );
 
@@ -52,12 +53,12 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
   const sortedBySalary = [...pool].sort((a, b) => a.salaryDemand - b.salaryDemand);
   const picks: Person[] = [];
   if (archetype === "labor") {
-    // 労働集約：一般作業員5名（最安・職種不問＝“頭数”）＋現場管理1名（最安のmanager）。
-    // 品質はエースではなく頭数×基礎資質で決まるので、普通の人材を安く数を揃える。
+    // 労働集約：一般作業員7名（最安・職種不問＝“頭数”）＋現場管理1名（最安のmanager）＝計8名。
+    // 品質はエースではなく頭数×基礎資質で決まる。低スキルで安いので8名でも初期バーンが成立。
     const manager = sortedBySalary.find((p) => p.jobCategory === "manager");
     if (manager) picks.push(manager); // 現場管理（mgmtMult＝現場のまとめ役）
     for (const p of sortedBySalary) {
-      if (picks.length >= 6) break;
+      if (picks.length >= 8) break;
       if (!picks.includes(p)) picks.push(p); // 一般作業員（最安から詰める）
     }
   } else {

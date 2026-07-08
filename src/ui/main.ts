@@ -537,7 +537,7 @@ function archetypeModal(): string {
         <button class="arch-card" data-arch="labor">
           <div class="arch-title">🏭 受託フルフィルメント</div>
           <div class="arch-sub"><b>労働集約・初心者向け（推奨）</b></div>
-          <div class="arch-desc">一般作業員を数多く雇い、頭数×コツコツ力で稼ぐ。品質の天井は低いが、序盤から黒字化しやすく安定。</div>
+          <div class="arch-desc">安い未熟練の作業員を大勢（8名〜）雇い、頭数×コツコツ力で「さばける量」を売る。人を増やすほど売上が伸びる。品質の天井は低いが、序盤から黒字化しやすく安定。</div>
         </button>
         <button class="arch-card" data-arch="knowledge">
           <div class="arch-title">💻 ソフトウェア / EC</div>

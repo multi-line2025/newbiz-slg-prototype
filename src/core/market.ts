@@ -19,7 +19,7 @@ import {
   KAD, KPR, KREP_ORG, KSALES, KCOMM_TH, KCOMM_S,
   QUAL_AD_BACKFIRE, QUAL_AD_FIT_FULL, BACKFIRE_K, BACKFIRE_TH,
   DECAY_PAID, DECAY_STICKY, ERODE_STICKY, RIVAL_GROWTH, SPEC_CP_K,
-  QLABOR_CORE, KLABOR_TH,
+  QLABOR_CORE, KLABOR_TH, KLABOR_ACQ,
 } from "./model/constants";
 import { densityOf, marketEff } from "./markets";
 import { clamp } from "./util";
@@ -216,6 +216,13 @@ export function stepProductMarket(
     const aSales = KSALES * sForce * (0.7 + 0.3 * (qualP / 100)) * roomEarned;
     dSticky += aSales;
     dStickySales += aSales;
+  }
+  // 労働集約の直販（v0.9・B）：さばける量(laborCapacity)で顧客を直接獲得＝頭数を出力へ直結。
+  // 口コミ/品質に依存せず、人を増やすほど客足が速く伸びる（低天井は sEarned/sReach で維持）。
+  if (archetype === "labor" && laborCap > 0) {
+    const aCap = KLABOR_ACQ * laborCap * roomEarned;
+    dSticky += aCap;
+    dStickySales += aCap;
   }
   // コミュニティ/THxP（§4.5）
   const uComm = product.commBudget / 1000;
