@@ -5,7 +5,7 @@ import { describe, it, expect } from "vitest";
 import { initGame } from "../src/core/init";
 import { poolPeople } from "../src/core/state";
 import {
-  subscribeScoutCountry, unsubscribeScoutCountry, scoutCandidate, hireCandidate,
+  subscribeScoutCountry, unsubscribeScoutCountry, scoutCandidate, offerAcceptProbability,
 } from "../src/core/actions";
 import { scoutedView } from "../src/core/scout";
 import { computeMonthlyBurn } from "../src/core/finance";
@@ -97,14 +97,17 @@ describe("v0.10：国別スカウトサブスク（可視性ゲート）", () =>
   });
 });
 
-describe("v0.10：採用可否ゲート＝会社評判（可視性とは別軸）", () => {
-  it("無名企業(rep10)は高PA(>120)を採用できない／普通のPAは採用できる", () => {
+describe("v0.11：採用可否＝評判は“受諾確率”で表現（ハードゲート/数値露出は撤廃）", () => {
+  it("無名企業(rep10)は高PAほど受諾確率が低く、普通PAは高い（閾値は露出しない）", () => {
     const s = initGame({ seed: 7, country: "US" });
-    // DBに存在する高PA(>120)人材（可視性に関わらず存在する）
-    const highPA = poolPeople(s).find((p) => p.PA > 120);
-    if (highPA) expect(hireCandidate(s, highPA.id).ok).toBe(false); // 評判ゲートで不可
-    // 起業国の雇える普通人材（PA<=120）は採用できる
-    const ordinary = poolPeople(s).find((p) => p.nationality === "US" && p.PA <= 120);
-    expect(hireCandidate(s, ordinary!.id).ok).toBe(true);
+    const highPA = poolPeople(s).find((p) => p.PA > 150);
+    const ordinary = poolPeople(s).find((p) => p.PA <= 110)!;
+    const pOrd = offerAcceptProbability(s.company, ordinary, ordinary.salaryDemand);
+    expect(pOrd).toBeGreaterThan(0.6); // 普通人材は概ね受諾
+    if (highPA) {
+      const pHigh = offerAcceptProbability(s.company, highPA, highPA.salaryDemand);
+      expect(pHigh).toBeLessThan(0.2);      // 高位人材は概ね辞退
+      expect(pHigh).toBeGreaterThan(0);     // ただし0にはしない（上限特定を困難に）
+    }
   });
 });

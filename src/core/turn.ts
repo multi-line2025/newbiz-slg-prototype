@@ -23,6 +23,7 @@ import { discloseValues } from "./analysis";
 import { stepDynamics, staleEff } from "./dynamics";
 import { rpPerTurn, eraForTurn, sectorTier, getBlueprint } from "./research";
 import { checkAchievements } from "./achievements";
+import { resolvePendingHires } from "./actions";
 import { makePRNG } from "./prng";
 import { clamp } from "./util";
 import { POACH_BASE, POACH_VULN_MIN, ANALYSIS_STEPS, QUAL_TIER_CAP as TIER_CAP } from "./model/constants";
@@ -143,6 +144,9 @@ export function advanceTurn(state: ProtoGameState): TurnResult {
 
   // ---- ライバル引き抜き（§4.12.3 簡易版）----
   s = applyPoaching(s, rng, events);
+
+  // ---- 採用オファーの進行・受諾判定（v0.11・3ターンのリクルート）----
+  s = resolvePendingHires(s, rng, events);
 
   // ---- ターン終了：連続黒字・AP回復・turn前進・seed前進 ----
   const profitStreak = netProfit >= 0 ? s.profitStreak + 1 : 0;

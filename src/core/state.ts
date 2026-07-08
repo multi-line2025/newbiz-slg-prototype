@@ -97,6 +97,13 @@ export interface Product {
   commBudget: number;
 }
 
+/** 進行中の採用オファー（v0.11）。3ターン後に受諾/辞退が確率的に決まる。 */
+export interface PendingHire {
+  personId: Id;
+  remaining: number; // 返答までの残りターン（RECRUIT_TURNS→0）
+  salaryOffered: number; // 提示月給（受諾時の契約給与）
+}
+
 /** プロトタイプの全体状態。 */
 export interface ProtoGameState {
   turn: number; // 現在ターン（1ターン=1ヶ月）
@@ -110,6 +117,7 @@ export interface ProtoGameState {
   employeeIds: Id[]; // 在籍社員
   poolIds: Id[]; // 採用候補プール（未採用の全人材）
   scoutSubscriptions: PlayableCountry[]; // 国別スカウトサブスク加入中の国（可視性ゲート・v0.10）
+  pendingHires: PendingHire[]; // 進行中の採用オファー（3ターン後に受諾判定・v0.11）
   markets: Record<string, MarketState>; // 多市場グリッド（セクター×国・§1）
   products: Product[]; // 自社製品（青写真×市場）
   assignments: Record<Id, Id>; // 社員ID → 配属先製品ID（QUAL_p・force算出に使用）

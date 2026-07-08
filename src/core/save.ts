@@ -15,7 +15,7 @@
 import type { ProtoGameState } from "./state";
 
 /** セーブファイルのスキーマバージョン（将来のマイグレーション用）。 */
-export const SAVE_VERSION = "0.10"; // v0.10：単一500人DB＋国別スカウトサブスクでスキーマ更新
+export const SAVE_VERSION = "0.11"; // v0.11：リクルート3ターン化（pendingHires）でスキーマ更新
 
 /** セーブファイルの包み。 */
 export interface SaveFile {

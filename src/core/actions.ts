@@ -9,14 +9,20 @@
  */
 
 import type { Person, Id, Role, Contract, PlayableCountry } from "./model/types";
-import type { ProtoGameState, Product } from "./state";
+import type { ProtoGameState, Product, ProtoCompany } from "./state";
 import { employees } from "./state";
-import { SCOUT_STEPS, AP_COST, RESEARCH_BUDGET_STEP, MARKET_BUDGET_STEP, ANALYSIS_STEPS, SCOUT_SUB_AP, SCOUT_SUB_COST } from "./model/constants";
+import {
+  SCOUT_STEPS, AP_COST, RESEARCH_BUDGET_STEP, MARKET_BUDGET_STEP, ANALYSIS_STEPS,
+  SCOUT_SUB_AP, SCOUT_SUB_COST,
+  RECRUIT_TURNS, MAX_PENDING_OFFERS, OFFER_PA_MARGIN_DIV, OFFER_BASE, OFFER_SALARY_K,
+  OFFER_AMBITION_K, OFFER_ACCEPT_MIN, OFFER_ACCEPT_MAX,
+} from "./model/constants";
 import { getBlueprint, blueprintStatus } from "./research";
 import { marketSizeOf } from "./markets";
 import { analysisSkill } from "./analysis";
 import { refreshDerived } from "./finance";
 import { reachablePaMax } from "./talentPool";
+import { clamp } from "./util";
 
 /** アクションの結果。ok=false なら state は元のまま。 */
 export interface ActionResult {
@@ -112,36 +118,98 @@ export function unsubscribeScoutCountry(state: ProtoGameState, country: Playable
   };
 }
 
+/** 候補者を即時に雇用する内部処理（契約・士気・プール移動）。creation/オファー受諾で使う。 */
+function employPerson(state: ProtoGameState, personId: Id, salary: number): ProtoGameState {
+  const p = state.people[personId];
+  const contract: Contract = { type: "fulltime", remainingTurns: 24, equity: 0, salary };
+  const updated: Person = { ...p, contract, morale: 60, assignedRole: null };
+  return refreshDerived({
+    ...state,
+    people: withPerson(state, updated),
+    employeeIds: [...state.employeeIds, personId],
+    poolIds: state.poolIds.filter((id) => id !== personId),
+    pendingHires: state.pendingHires.filter((o) => o.personId !== personId),
+  });
+}
+
 /**
- * 採用オファー（§4.3）。候補者を雇用し、実効要求給与で契約を結ぶ。
- * 給与は毎ターンのバーンに反映される（前払いはしない）。
+ * 【内部/テスト用】候補者を即時に雇用する（§4.3）。プレイヤーUIは makeOffer（3ターン）を使う。
+ * ※ 情報リーク防止：PA・評判上限を露出するメッセージ/ゲートは持たない。
  */
 export function hireCandidate(state: ProtoGameState, personId: Id): ActionResult {
   const p = state.people[personId];
   if (!p) return fail(state, "対象が見つかりません。");
   if (!state.poolIds.includes(personId)) return fail(state, `${p.name}は候補プールにいません。`);
-  // v0.10：採用可否ゲート＝会社評判。高PA人材は評判が足りないと来てくれない（可視性とは別軸）。
-  const gate = reachablePaMax(state.company.reputation);
-  if (p.PA > gate) {
-    return fail(state, `${p.name}(PA${p.PA})は評判が足りず採用できません（現在の到達上限PA${gate}）。`);
-  }
   if (state.ap < AP_COST.hire) return fail(state, `APが足りません（必要${AP_COST.hire}AP）。`);
-
-  const salary = p.salaryDemand; // §4.3本式で算出済み（起業国の最低賃金係数込み）
-  const contract: Contract = { type: "fulltime", remainingTurns: 24, equity: 0, salary };
-  const updated: Person = { ...p, contract, morale: 60, assignedRole: null };
-
+  const salary = p.salaryDemand;
   return {
-    state: refreshDerived({
-      ...state,
-      ap: state.ap - AP_COST.hire,
-      people: withPerson(state, updated),
-      employeeIds: [...state.employeeIds, personId],
-      poolIds: state.poolIds.filter((id) => id !== personId),
-    }),
+    state: { ...employPerson(state, personId, salary), ap: state.ap - AP_COST.hire },
     ok: true,
     message: `採用：${p.name}（月給$${salary}）を雇用。`,
   };
+}
+
+/**
+ * 採用オファーを出す（v0.11・リクルート）。即時雇用ではなく3ターンの交渉に入る。
+ * 返答（受諾/辞退）は resolvePendingHires で確率的に解決する。
+ * ※ リーク遮断：PA・評判上限は一切露出しない。二重オファー不可・同時オファー上限あり。
+ */
+export function makeOffer(state: ProtoGameState, personId: Id): ActionResult {
+  const p = state.people[personId];
+  if (!p) return fail(state, "対象が見つかりません。");
+  if (state.employeeIds.includes(personId)) return fail(state, `${p.name}は既に社員です。`);
+  if (!state.poolIds.includes(personId)) return fail(state, `${p.name}は候補にいません。`);
+  if (state.pendingHires.some((o) => o.personId === personId)) return fail(state, `${p.name}へは既にオファー交渉中です。`);
+  if (state.pendingHires.length >= MAX_PENDING_OFFERS) {
+    return fail(state, `同時オファーは${MAX_PENDING_OFFERS}件まで。いずれかの返答を待ちましょう。`);
+  }
+  if (state.ap < AP_COST.hire) return fail(state, `APが足りません（必要${AP_COST.hire}AP）。`);
+  const salary = p.salaryDemand; // 提示は要求給与（本MVPでは給与交渉なし）
+  const offer = { personId, remaining: RECRUIT_TURNS, salaryOffered: salary };
+  return {
+    state: refreshDerived({ ...state, ap: state.ap - AP_COST.hire, pendingHires: [...state.pendingHires, offer] }),
+    ok: true,
+    message: `オファー提出：${p.name}（${RECRUIT_TURNS}ターン後に返答）。`,
+  };
+}
+
+/**
+ * オファー受諾確率（0-1・純粋関数・v0.11）。UIには一切露出しない内部値。
+ *  評判で届く範囲(内部アンカー reachablePaMax)なら概ね受諾、超える高位人材は無名企業に概ね辞退。
+ *  境界は確率的にぼかし、提示給与↑で受諾↑・野心×無名度で受諾↓。閾値もPA数値も表に出さない。
+ */
+export function offerAcceptProbability(company: ProtoCompany, person: Person, salaryOffered: number): number {
+  const gate = reachablePaMax(company.reputation);              // 内部アンカー（非露出）
+  const paMargin = (gate - person.PA) / OFFER_PA_MARGIN_DIV;    // >0=射程内 / <0=高望み
+  let p = OFFER_BASE + paMargin;
+  const salaryRatio = salaryOffered / Math.max(1, person.salaryDemand);
+  p += OFFER_SALARY_K * (salaryRatio - 1);                      // 高提示ほど受諾↑
+  p -= OFFER_AMBITION_K * (person.attributes.mental.ambition / 20) * (1 - company.reputation / 100);
+  return clamp(p, OFFER_ACCEPT_MIN, OFFER_ACCEPT_MAX);
+}
+
+/** 進行中オファーを1ターン進め、返答ターン(remaining→0)で受諾/辞退を確率解決する（v0.11）。 */
+export function resolvePendingHires(
+  state: ProtoGameState,
+  rng: { chance: (p: number) => boolean },
+  events: string[]
+): ProtoGameState {
+  let s = state;
+  const next: ProtoGameState["pendingHires"] = [];
+  for (const offer of state.pendingHires) {
+    const p = s.people[offer.personId];
+    if (!p || s.employeeIds.includes(offer.personId)) continue; // 候補が消えた/既に社員→オファー消滅
+    const rem = offer.remaining - 1;
+    if (rem > 0) { next.push({ ...offer, remaining: rem }); continue; }
+    // 返答ターン：受諾判定（PA・閾値は一切表に出さない）
+    if (rng.chance(offerAcceptProbability(s.company, p, offer.salaryOffered))) {
+      s = employPerson(s, offer.personId, offer.salaryOffered);
+      events.push(`🎉 採用成立：${p.name} が着任しました。`);
+    } else {
+      events.push(`オファーを辞退されました：${p.name}。`);
+    }
+  }
+  return { ...s, pendingHires: next };
 }
 
 /**

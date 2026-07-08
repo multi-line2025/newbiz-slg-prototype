@@ -15,7 +15,6 @@ import { employees, poolPeople, productTeam } from "../core/state";
 import type { PlayableCountry, JobCategory, Role } from "../core/model/types";
 import {
   scoutCandidate,
-  hireCandidate,
   assignRole,
   assignToProduct,
   launchProduct,
@@ -26,6 +25,7 @@ import {
   companyScoutSkill,
   subscribeScoutCountry,
   unsubscribeScoutCountry,
+  makeOffer,
   type ActionResult,
   type MarketChannel,
 } from "../core/actions";
@@ -37,7 +37,7 @@ import {
 import { marketEff, marketSizeOf } from "../core/markets";
 import { staleEff } from "../core/dynamics";
 import { analysisSkill, fitP, opportunityScore, analyzedRange } from "../core/analysis";
-import { SCOUT_STEPS, SECTOR_NAME, SECTORS, ANALYSIS_STEPS, DMAT_REF, SCOUT_SUB_COST } from "../core/model/constants";
+import { SCOUT_STEPS, SECTOR_NAME, SECTORS, ANALYSIS_STEPS, DMAT_REF, SCOUT_SUB_COST, MAX_PENDING_OFFERS } from "../core/model/constants";
 import { ACHIEVEMENTS, getAchievement, checkAchievements } from "../core/achievements";
 import { storage } from "../core/save";
 import type { Attributes } from "../core/model/types";
@@ -92,6 +92,12 @@ let activeTab: TabId = "overview";
 let choosingArchetype = false;
 // 採用市場で選択中の国（v0.10・国別タブ）。null なら描画時に起業国へフォールバック。
 let recruitCountry: PlayableCountry | null = null;
+// 採用市場の並べ替え・職種フィルタ・ページ（v0.11・全候補表示）。
+type RecruitSort = "stars" | "salaryAsc" | "ageAsc" | "caDesc";
+let recruitSort: RecruitSort = "stars";
+let recruitJob: JobCategory | "all" = "all";
+let recruitPage = 0;
+const RECRUIT_PAGE_SIZE = 20; // 1ページ描画数（500人でも軽い）
 
 /** その人物が現在“見える”か（社員＝常に可視／候補＝その国のサブスク加入時のみ・v0.10）。 */
 function isVisible(p: { id: string; nationality: string }): boolean {
@@ -177,6 +183,10 @@ function candidateRow(
   const scoutBtn = nextStep
     ? `<button class="mini" data-scout="${p.id}">スカウトLv${p.scoutLevel + 1}<br><span class="cost">${nextStep.ap}AP/$${fmt(nextStep.cash)}</span></button>`
     : `<span class="done">調査済</span>`;
+  const pending = state.pendingHires.find((o) => o.personId === p.id);
+  const offerBtn = pending
+    ? `<span class="negotiating">交渉中<br><span class="cost">残${pending.remaining}T</span></span>`
+    : `<button class="mini offer" data-offer="${p.id}">オファー<br><span class="cost">1AP</span></button>`;
   return `<tr>
     <td class="name"><a class="pname" data-person="${p.id}">${p.name}</a></td>
     <td>${JOB_LABEL[p.jobCategory]}</td>
@@ -187,7 +197,7 @@ function candidateRow(
     <td class="num">${paCell(view)}</td>
     <td class="num">${loyCell(view)}</td>
     <td class="num">$${fmt(p.salaryDemand)}</td>
-    <td class="acts">${scoutBtn}<button class="mini hire" data-hire="${p.id}">採用<br><span class="cost">1AP</span></button></td>
+    <td class="acts">${scoutBtn}${offerBtn}</td>
   </tr>`;
 }
 
@@ -273,7 +283,9 @@ function detailModal(): string {
       </div>
       <div class="d-acts">
         ${v.scoutLevel < 2 ? `<button class="mini" data-scout="${p.id}">スカウトLv${v.scoutLevel + 1}<br><span class="cost">${SCOUT_STEPS[v.scoutLevel].ap}AP/$${fmt(SCOUT_STEPS[v.scoutLevel].cash)}</span></button>` : `<span class="done">調査済</span>`}
-        <button class="mini hire" data-hire="${p.id}">採用<br><span class="cost">1AP</span></button>
+        ${state.pendingHires.find((o) => o.personId === p.id)
+          ? `<span class="negotiating">交渉中（残${state.pendingHires.find((o) => o.personId === p.id)!.remaining}ターン）</span>`
+          : `<button class="mini offer" data-offer="${p.id}">オファーを出す<br><span class="cost">1AP・${3}T</span></button>`}
       </div>`;
   }
 
@@ -663,20 +675,36 @@ function recruitPanel(): string {
       <button class="primary" data-sub="${sel}">加入して開示（月額$${fmt(SCOUT_SUB_COST[sel])} / ${1}AP）</button>
     </div>`;
   } else {
-    // 加入国：その国の候補を★順に抜粋（500人対策で上位24名に絞って描画）。
-    const pool = poolPeople(state)
-      .filter((p) => p.nationality === sel)
-      .sort((a, b) => occStarsOf(b) - occStarsOf(a))
-      .slice(0, 24);
-    const rows = pool.length
-      ? pool.map((p) => candidateRow(p, viewOf(p))).join("")
-      : `<tr><td colspan="10" class="muted">この国の候補は現在いません。</td></tr>`;
+    // 加入国：その国の“全候補”を職種フィルタ→並べ替え→ページングで表示（v0.11）。
+    let list = poolPeople(state).filter((p) => p.nationality === sel);
+    if (recruitJob !== "all") list = list.filter((p) => p.jobCategory === recruitJob);
+    const total = list.length;
+    list = sortCandidates(list, recruitSort);
+    const pages = Math.max(1, Math.ceil(total / RECRUIT_PAGE_SIZE));
+    const page = Math.min(recruitPage, pages - 1);
+    const view = list.slice(page * RECRUIT_PAGE_SIZE, page * RECRUIT_PAGE_SIZE + RECRUIT_PAGE_SIZE);
+    const rows = view.length
+      ? view.map((p) => candidateRow(p, viewOf(p))).join("")
+      : `<tr><td colspan="10" class="muted">条件に合う候補がいません。</td></tr>`;
+
     const subInfo = selIsHome
       ? `<span class="sub-on">本拠地</span> 無料（地元の採用網）`
       : `<span class="sub-on">加入中</span> 月額$${fmt(SCOUT_SUB_COST[sel])}／月 <button class="mini ghost" data-unsub="${sel}">解約</button>`;
-    body = `<div class="sub-bar">
-        ${subInfo}
-        <span class="muted">${COUNTRY_LABEL[sel]}の候補 上位24名（★順・氏名クリックで詳細）</span>
+    const jobOpts = [`<option value="all"${recruitJob === "all" ? " selected" : ""}>全職種</option>`]
+      .concat(JOBS.map((j) => `<option value="${j}"${recruitJob === j ? " selected" : ""}>${JOB_LABEL[j]}</option>`)).join("");
+    const sortOpts = ([["stars", "技能★（高い順）"], ["salaryAsc", "要求給与（安い順）"], ["ageAsc", "年齢（若い順）"], ["caDesc", "CA（高い順・スカウト済）"]] as [RecruitSort, string][])
+      .map(([v, l]) => `<option value="${v}"${recruitSort === v ? " selected" : ""}>${l}</option>`).join("");
+    const pager = `<div class="pager">
+        <button class="mini" data-rpage="prev" ${page <= 0 ? "disabled" : ""}>‹ 前</button>
+        <span class="muted">${total ? page * RECRUIT_PAGE_SIZE + 1 : 0}–${Math.min(total, (page + 1) * RECRUIT_PAGE_SIZE)} / 全${total}名（${page + 1}/${pages}）</span>
+        <button class="mini" data-rpage="next" ${page >= pages - 1 ? "disabled" : ""}>次 ›</button>
+      </div>`;
+
+    body = `<div class="sub-bar">${subInfo}</div>
+      <div class="recruit-ctl">
+        <label>職種 <select data-rjob>${jobOpts}</select></label>
+        <label>並べ替え <select data-rsort>${sortOpts}</select></label>
+        ${pager}
       </div>
       <table>
         <thead><tr><th>氏名</th><th>職種</th><th>年齢</th><th>国籍</th><th>技能</th><th>CA</th><th>PA</th><th>忠誠</th><th>要求給与</th><th>操作</th></tr></thead>
@@ -684,12 +712,31 @@ function recruitPanel(): string {
       </table>`;
   }
 
+  const pendingBar = state.pendingHires.length
+    ? `<div class="pending-bar">交渉中のオファー ${state.pendingHires.length}/${MAX_PENDING_OFFERS}：${
+        state.pendingHires.map((o) => `${state.people[o.personId]?.name ?? "?"}（残${o.remaining}T）`).join(" / ")
+      }</div>`
+    : "";
+
   return `<section class="panel">
     <h2>採用市場（ワールドDB ${state.poolIds.length}名・分析スキル ${skill.toFixed(1)}）
-      <span class="legend">国別サブスク＝可視性ゲート。加入国のみ★開示→個別スカウトでCA/PAを深掘り。採用は会社評判が必要。</span></h2>
+      <span class="legend">国別サブスク＝可視性ゲート。採用は「オファー」を出し3ターン後に返答（無名企業は上位人材に辞退されがち）。</span></h2>
     <div class="ctabs">${tabs}</div>
+    ${pendingBar}
     ${body}
   </section>`;
+}
+
+/** 候補一覧の並べ替え（★／要求給与昇順／年齢昇順／CA降順〈スカウト済のみ上位〉）。 */
+function sortCandidates<T extends { id: string; salaryDemand: number; age: number }>(list: T[], sort: RecruitSort): T[] {
+  const arr = [...list];
+  switch (sort) {
+    case "salaryAsc": return arr.sort((a, b) => a.salaryDemand - b.salaryDemand);
+    case "ageAsc": return arr.sort((a, b) => a.age - b.age);
+    case "caDesc": return arr.sort((a, b) => (viewOf(b as any).caKnown ?? -1) - (viewOf(a as any).caKnown ?? -1));
+    case "stars":
+    default: return arr.sort((a, b) => occStarsOf(b as any) - occStarsOf(a as any));
+  }
 }
 
 /** 可視性を織り込んだ★（未加入国は0＝非表示）。 */
@@ -845,7 +892,7 @@ function render(): void {
     state = initGame({ seed: freshSeed(), country: "US", archetype });
     choosingArchetype = false;
     toast = archetype === "labor" ? "労働集約で新規開始しました。" : "知識集約で新規開始しました。";
-    selectedPersonId = null; recruitCountry = null; activeTab = "overview"; render();
+    selectedPersonId = null; recruitCountry = null; recruitPage = 0; recruitJob = "all"; recruitSort = "stars"; activeTab = "overview"; render();
   };
   app.querySelectorAll<HTMLElement>("[data-arch]").forEach((el) =>
     el.addEventListener("click", () => startWith(el.dataset.arch as "labor" | "knowledge"))
@@ -873,12 +920,23 @@ function render(): void {
   app.querySelectorAll<HTMLButtonElement>("[data-scout]").forEach((b) =>
     b.addEventListener("click", () => apply(scoutCandidate(state, b.dataset.scout!)))
   );
-  app.querySelectorAll<HTMLButtonElement>("[data-hire]").forEach((b) =>
-    b.addEventListener("click", () => apply(hireCandidate(state, b.dataset.hire!)))
+  // 採用オファー（v0.11・3ターン後に受諾判定）
+  app.querySelectorAll<HTMLButtonElement>("[data-offer]").forEach((b) =>
+    b.addEventListener("click", () => apply(makeOffer(state, b.dataset.offer!)))
+  );
+  // 採用市場：職種フィルタ・並べ替え・ページング（v0.11）
+  app.querySelectorAll<HTMLSelectElement>("[data-rjob]").forEach((sel) =>
+    sel.addEventListener("change", () => { recruitJob = sel.value as JobCategory | "all"; recruitPage = 0; render(); })
+  );
+  app.querySelectorAll<HTMLSelectElement>("[data-rsort]").forEach((sel) =>
+    sel.addEventListener("change", () => { recruitSort = sel.value as RecruitSort; recruitPage = 0; render(); })
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-rpage]").forEach((b) =>
+    b.addEventListener("click", () => { recruitPage += b.dataset.rpage === "next" ? 1 : -1; if (recruitPage < 0) recruitPage = 0; render(); })
   );
   // --- 国別スカウトサブスク（v0.10）：タブ切替・加入・解約 ---
   app.querySelectorAll<HTMLButtonElement>("[data-rctry]").forEach((b) =>
-    b.addEventListener("click", () => { recruitCountry = b.dataset.rctry as PlayableCountry; render(); })
+    b.addEventListener("click", () => { recruitCountry = b.dataset.rctry as PlayableCountry; recruitPage = 0; render(); })
   );
   app.querySelectorAll<HTMLButtonElement>("[data-sub]").forEach((b) =>
     b.addEventListener("click", () => { recruitCountry = b.dataset.sub as PlayableCountry; apply(subscribeScoutCountry(state, b.dataset.sub as PlayableCountry)); })

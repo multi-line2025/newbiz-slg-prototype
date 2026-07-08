@@ -146,6 +146,7 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
     employeeIds,
     poolIds,
     scoutSubscriptions: [country], // 起業国は開始時から加入済み（初期に候補が見える）
+    pendingHires: [], // 進行中の採用オファー（創業メンバーは即時雇用済み・v0.11）
     markets,
     products: [starter],
     assignments,
