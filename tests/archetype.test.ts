@@ -146,20 +146,26 @@ describe("v0.9・A：本物の低スキル人材層（labor プール）", () =>
     }
   });
 
-  it("labor プールは安く数のいる低CA労働者で満たされる（頭数をスケール可能）", () => {
+  it("ワールドDBには安く数のいる低CA労働者(未熟練)が潤沢に含まれる（頭数をスケール可能）", () => {
+    // v0.10：labor/knowledgeで別プールにせず、低ティアを世界に含めることで統合。
     const s = initGame({ seed: 3, archetype: "labor" });
     const pool = poolPeople(s);
-    expect(pool.length).toBeGreaterThanOrEqual(20); // 潤沢
-    expect(avg(pool.map((p) => p.CA))).toBeLessThan(60); // 全体的に低スキル
-    // 単純作業の基礎資質（体力/健康）は年齢ボーナスで確保されている
-    const okCondition = pool.filter((p) => p.attributes.condition.stamina + p.attributes.condition.health >= 8);
-    expect(okCondition.length).toBeGreaterThan(pool.length * 0.5);
+    expect(pool.length).toBeGreaterThan(400); // 約500人の単一DB
+    const lowSkill = pool.filter((p) => p.PA < 80); // 未熟練＝安い頭数
+    expect(lowSkill.length).toBeGreaterThan(80); // 潤沢（頭数を継続的にスケールできる）
+    expect(avg(lowSkill.map((p) => p.CA))).toBeLessThan(60); // 未熟練は低CA
+    // 未熟練の基礎資質（体力/健康）は若年ボーナスで単純作業に足る
+    const okCondition = lowSkill.filter((p) => p.attributes.condition.stamina + p.attributes.condition.health >= 8);
+    expect(okCondition.length).toBeGreaterThan(lowSkill.length * 0.5);
   });
 
-  it("knowledge プールは現行分布のまま（非回帰・平均CAが labor より高い）", () => {
-    const k = poolPeople(initGame({ seed: 3 }));
-    const l = poolPeople(initGame({ seed: 3, archetype: "labor" }));
-    expect(avg(k.map((p) => p.CA))).toBeGreaterThan(avg(l.map((p) => p.CA)));
+  it("labor/knowledge は同一のワールドDBから引く（別プールにしない・v0.10）", () => {
+    const k = poolPeople(initGame({ seed: 3 })).map((p) => p.PA).sort((a, b) => a - b);
+    const l = poolPeople(initGame({ seed: 3, archetype: "labor" })).map((p) => p.PA).sort((a, b) => a - b);
+    // 開始選抜（labor8名/knowledge2名）で抜ける人数差はあるが、DB全体の分布は同一由来
+    const kElite = k.filter((pa) => pa >= 150).length;
+    const lElite = l.filter((pa) => pa >= 150).length;
+    expect(Math.abs(kElite - lElite)).toBeLessThanOrEqual(2); // ほぼ同じ（別プールではない）
   });
 });
 

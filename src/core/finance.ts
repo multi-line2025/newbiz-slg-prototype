@@ -9,7 +9,7 @@
  * ======================================================================
  */
 
-import { FIXED_COST } from "./model/constants";
+import { FIXED_COST, SCOUT_SUB_COST } from "./model/constants";
 import type { ProtoGameState } from "./state";
 import { employees } from "./state";
 import { productRevenue, marketSizeFactor } from "./market";
@@ -39,9 +39,19 @@ export function sumMarketBudgets(s: ProtoGameState): number {
   return sum(s.products.map((p) => p.adBudget + p.prBudget + p.commBudget));
 }
 
-/** 月次バーンレート = Σ給与 + 固定費 + 研究投資 + 全製品マーケ予算（§6.3 / §12.3 / 市場§4）。 */
+/**
+ * 国別スカウトサブスクの月額合計（v0.10）。継続コストとしてバーンに乗る。
+ * 起業国(home)は本拠地＝無料（地元の採用網は最初から持っている）。海外への拡張のみ課金。
+ * これにより開始時のベースバーンは v0.9 と同等に保たれる（knowledge非回帰）。
+ */
+export function sumScoutSubscriptions(s: ProtoGameState): number {
+  const home = s.company.foundedCountry;
+  return sum((s.scoutSubscriptions ?? []).filter((c) => c !== home).map((c) => SCOUT_SUB_COST[c] ?? 0));
+}
+
+/** 月次バーンレート = Σ給与 + 固定費 + 研究投資 + 全製品マーケ予算 + スカウトサブスク（§6.3 / 市場§4 / v0.10）。 */
 export function computeMonthlyBurn(s: ProtoGameState): number {
-  return sumSalaries(s) + FIXED_COST + s.company.researchBudget + sumMarketBudgets(s);
+  return sumSalaries(s) + FIXED_COST + s.company.researchBudget + sumMarketBudgets(s) + sumScoutSubscriptions(s);
 }
 
 /**

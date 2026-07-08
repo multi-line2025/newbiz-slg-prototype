@@ -106,9 +106,10 @@ export interface ProtoGameState {
   company: ProtoCompany;
   ap: number; // 行動ポイント（毎ターン回復）
   apMax: number;
-  people: Record<Id, Person>; // 人材DB（社員＋候補プール）
+  people: Record<Id, Person>; // 人材DB（社員＋候補プール・約500人の単一ワールド）
   employeeIds: Id[]; // 在籍社員
-  poolIds: Id[]; // 採用候補プール
+  poolIds: Id[]; // 採用候補プール（未採用の全人材）
+  scoutSubscriptions: PlayableCountry[]; // 国別スカウトサブスク加入中の国（可視性ゲート・v0.10）
   markets: Record<string, MarketState>; // 多市場グリッド（セクター×国・§1）
   products: Product[]; // 自社製品（青写真×市場）
   assignments: Record<Id, Id>; // 社員ID → 配属先製品ID（QUAL_p・force算出に使用）

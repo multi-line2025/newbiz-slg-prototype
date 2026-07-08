@@ -37,20 +37,20 @@ describe("buildPerson", () => {
 });
 
 describe("generateTalentPool", () => {
-  it("PA希少性分布：一般〜優秀帯（PA<150）が大多数を占める", () => {
+  it("PA希少性分布：未熟練〜優秀帯（PA<150）が大多数を占める（v0.10・単一DB）", () => {
     const rng = makePRNG(123);
-    // 評判高め（届く上限を上げて分布そのものを観測）
-    const pool = generateTalentPool({ poolSize: 2000, reputation: 90, era: "internet" }, rng);
+    const pool = generateTalentPool({ poolSize: 2000, era: "internet" }, rng);
     const common = pool.filter((p) => p.PA < 150).length;
-    expect(common / pool.length).toBeGreaterThan(0.85); // 一般+優秀で9割超
+    expect(common / pool.length).toBeGreaterThan(0.85); // 未熟練+一般+優秀で9割超
   });
 
-  it("評判ゲート：無名企業(評判10)には高PA(>130)がほぼ来ない", () => {
+  it("単一ワールドDBは全ティアを含む（生成時は評判で除外しない・高PAも稀に存在）", () => {
     const rng = makePRNG(999);
-    const pool = generateTalentPool({ poolSize: 1000, reputation: 10, era: "internet" }, rng);
-    const overGate = pool.filter((p) => p.PA > 130).length;
-    // 例外枠(5%)のみ許容 → 全体の1割未満
-    expect(overGate / pool.length).toBeLessThan(0.1);
+    const pool = generateTalentPool({ poolSize: 1000, era: "internet" }, rng);
+    // v0.10：評判ゲートは生成除外ではなく“採用可否”へ移行。DB自体には全ティアが居る。
+    expect(pool.filter((p) => p.PA < 80).length).toBeGreaterThan(0);   // 未熟練が居る
+    expect(pool.filter((p) => p.PA >= 150).length).toBeGreaterThan(0); // 一流以上も稀に居る
+    expect(pool.length).toBe(1000); // 除外せず全員生成
   });
 
   it("reachablePaMax：評判が高いほど到達上限が上がる", () => {

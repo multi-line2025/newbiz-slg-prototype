@@ -126,6 +126,18 @@
       .blur { filter: blur(0.4px); opacity: 0.7; font-style: italic; }
       .unknown { color: #4d5661; }
       .done { color: var(--muted); font-size: 11px; }
+      /* 国別スカウトサブスク（v0.10） */
+      .ctabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 12px; }
+      .ctab { background: var(--panel2); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+      .ctab.active { color: var(--fg, #e8edf2); border-color: var(--accent, #4a9); background: rgba(74,153,153,0.12); }
+      .sub-on { color: #4bbf73; font-size: 11px; font-weight: 700; }
+      .sub-off { color: #b26b6b; font-size: 11px; }
+      .sub-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; font-size: 12px; }
+      .sub-locked { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 22px; background: var(--panel2); border: 1px dashed var(--border); border-radius: 10px; }
+      .sub-locked .lock-ic { font-size: 30px; }
+      button.primary { background: var(--accent, #2f7d7d); color: #fff; border: none; border-radius: 8px; padding: 9px 14px; cursor: pointer; font-size: 13px; }
+      button.primary:hover { filter: brightness(1.1); }
+      .mini.ghost { background: transparent; }
       /* 表内ミニボタン */
       td.acts { white-space: nowrap; }
       button.mini {

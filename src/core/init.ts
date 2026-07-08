@@ -14,7 +14,7 @@ import type { ProtoGameState, Product } from "./state";
 import { computeMonthlyBurn } from "./finance";
 import { computeQualP } from "./product";
 import { generateMarkets, marketId } from "./markets";
-import { DEFAULT_MISSION_TAGS, type Archetype } from "./model/constants";
+import { DEFAULT_MISSION_TAGS, WORLD_POOL_SIZE, ORDINARY_PA_MIN, UNSKILLED_PA_MAX, type Archetype } from "./model/constants";
 
 export interface InitOptions {
   seed?: number;
@@ -36,9 +36,9 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
 
   // 会社評判は初期は無名（10）
   const reputation = 10;
-  // labor は低スキル労働者を潤沢に出すため試行数を増やす（頭数をスケールできる在庫）
+  // v0.10：単一ワールドDB（約500人・全ティア混在）。評判/サブスクは別軸ゲートで後段に効く。
   const pool = generateTalentPool(
-    { poolSize: opts.poolSize ?? (archetype === "labor" ? 60 : 40), reputation, era, hireCountry: country, archetype },
+    { poolSize: opts.poolSize ?? WORLD_POOL_SIZE, era, hireCountry: country },
     rng
   );
 
@@ -50,28 +50,37 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
   }
 
   // 初期採用（v0.7.2 方針：人材は“普通”のまま。能力は底上げしない）。
-  const sortedBySalary = [...pool].sort((a, b) => a.salaryDemand - b.salaryDemand);
+  // v0.10：単一ワールドDBから業態の性質どおりに選抜（labor=未熟練／knowledge=ordinary）。
   const picks: Person[] = [];
   if (archetype === "labor") {
-    // 労働集約：一般作業員7名（最安・職種不問＝“頭数”）＋現場管理1名（最安のmanager）＝計8名。
-    // 品質はエースではなく頭数×基礎資質で決まる。低スキルで安いので8名でも初期バーンが成立。
-    const manager = sortedBySalary.find((p) => p.jobCategory === "manager");
+    // 労働集約：未熟練層(PA<80＝安い低CA)のみから最安8名。現場管理1名＋一般作業員7名。
+    // これで v0.9 の「安い低CAの頭数」を維持（DB統合後もlaborの開始CAは低いまま）。
+    const unskilled = pool.filter((p) => p.PA < UNSKILLED_PA_MAX).sort((a, b) => a.salaryDemand - b.salaryDemand);
+    const manager = unskilled.find((p) => p.jobCategory === "manager");
     if (manager) picks.push(manager); // 現場管理（mgmtMult＝現場のまとめ役）
-    for (const p of sortedBySalary) {
+    for (const p of unskilled) {
       if (picks.length >= 8) break;
       if (!picks.includes(p)) picks.push(p); // 一般作業員（最安から詰める）
     }
   } else {
-    // 知識集約（v0.7.2 互換）：安い駆け出しを職種カバレッジ重視で2名。
-    // sales(turn1から効く直販レバー・§4.4)＋engineer(EC品質の主weight)。能力値は普通。
+    // 知識集約（v0.7.2 互換）：ordinary層＝普通の即戦力ルーキー(PA 80〜120・CA>=60)から
+    // 役割カバレッジ重視で2名。sales(turn1直販レバー・§4.4)＋engineer(EC品質の主weight)。
+    // “普通”のまま（エリート/best-in-roleは採らない）。ただし 500人DBでは「最安＝その職種の技能が
+    // たまたま極端に低い人」を引きやすいので、“職務が務まる下限(ability>=9/20)”を満たす最安を優先。
+    // これは能力の底上げではなく「役割ミスマッチのダズを避ける」選抜（v0.9の起点を再現）。
+    const ordinary = pool
+      .filter((p) => p.PA >= ORDINARY_PA_MIN && p.PA <= 120 && p.CA >= 60)
+      .sort((a, b) => a.salaryDemand - b.salaryDemand);
     const hireCount = opts.hireCount ?? 2;
-    const preferred = ["sales", "engineer"];
-    for (const job of preferred) {
+    const roleAbility: Record<string, keyof Person["attributes"]["occupational"]> = { sales: "sales", engineer: "engineering" };
+    for (const job of ["sales", "engineer"]) {
       if (picks.length >= hireCount) break;
-      const cand = sortedBySalary.find((p) => p.jobCategory === job && !picks.includes(p));
+      const ab = roleAbility[job];
+      const competent = ordinary.find((p) => p.jobCategory === job && !picks.includes(p) && p.attributes.occupational[ab] >= 9);
+      const cand = competent ?? ordinary.find((p) => p.jobCategory === job && !picks.includes(p));
       if (cand) picks.push(cand);
     }
-    for (const p of sortedBySalary) {
+    for (const p of ordinary) {
       if (picks.length >= hireCount) break;
       if (!picks.includes(p)) picks.push(p);
     }
@@ -136,6 +145,7 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
     people,
     employeeIds,
     poolIds,
+    scoutSubscriptions: [country], // 起業国は開始時から加入済み（初期に候補が見える）
     markets,
     products: [starter],
     assignments,

@@ -24,6 +24,8 @@ import {
   setMarketBudget,
   unlockBlueprint,
   companyScoutSkill,
+  subscribeScoutCountry,
+  unsubscribeScoutCountry,
   type ActionResult,
   type MarketChannel,
 } from "../core/actions";
@@ -35,7 +37,7 @@ import {
 import { marketEff, marketSizeOf } from "../core/markets";
 import { staleEff } from "../core/dynamics";
 import { analysisSkill, fitP, opportunityScore, analyzedRange } from "../core/analysis";
-import { SCOUT_STEPS, SECTOR_NAME, SECTORS, ANALYSIS_STEPS, DMAT_REF } from "../core/model/constants";
+import { SCOUT_STEPS, SECTOR_NAME, SECTORS, ANALYSIS_STEPS, DMAT_REF, SCOUT_SUB_COST } from "../core/model/constants";
 import { ACHIEVEMENTS, getAchievement, checkAchievements } from "../core/achievements";
 import { storage } from "../core/save";
 import type { Attributes } from "../core/model/types";
@@ -88,6 +90,18 @@ const TABS: { id: TabId; label: string }[] = [
 let activeTab: TabId = "overview";
 // 新規開始時の業態選択モーダル表示フラグ（v0.8）。表示中は選択するまでゲームを始めない。
 let choosingArchetype = false;
+// 採用市場で選択中の国（v0.10・国別タブ）。null なら描画時に起業国へフォールバック。
+let recruitCountry: PlayableCountry | null = null;
+
+/** その人物が現在“見える”か（社員＝常に可視／候補＝その国のサブスク加入時のみ・v0.10）。 */
+function isVisible(p: { id: string; nationality: string }): boolean {
+  if (state.employeeIds.includes(p.id)) return true;
+  return state.scoutSubscriptions.includes(p.nationality as PlayableCountry);
+}
+/** サブスク可視性を織り込んだ scoutedView。 */
+function viewOf(p: Parameters<typeof scoutedView>[0]): ScoutView {
+  return scoutedView(p, companyScoutSkill(state), isVisible(p));
+}
 
 const fmt = (n: number): string => Math.round(n).toLocaleString();
 const runwayText = (n: number): string => (isFinite(n) ? `${n.toFixed(1)} ヶ月` : "∞");
@@ -231,9 +245,18 @@ function detailModal(): string {
         ${attrCategory("condition", p.attributes)}
         ${attrCategory("hidden", p.attributes)}
       </div>`;
+  } else if (!isVisible(p)) {
+    // 未加入国：★も素性も一切不明（完全フォグ）。加入導線のみ。
+    body = `
+      <div class="d-note">${COUNTRY_LABEL[p.nationality as PlayableCountry] ?? p.nationality}は未加入です。スカウトサブスクに加入すると★が見え、個別スカウトで深掘りできます。</div>
+      <div class="d-list">
+        <div class="d-row"><span>専門技能（概算）</span><span class="unknown">不明（未加入）</span></div>
+        <div class="d-row"><span>CA / PA / 忠誠</span><span class="unknown">不明</span></div>
+      </div>
+      <div class="d-acts"><button class="primary" data-sub="${p.nationality}">加入して開示（月額$${fmt(SCOUT_SUB_COST[p.nationality as PlayableCountry])}）</button></div>`;
   } else {
-    // 候補者：scoutLevelでゲート。未スカウトはCA/PA/人格を出さない
-    const v = scoutedView(p, companyScoutSkill(state));
+    // 候補者（加入国）：scoutLevelでゲート。未スカウトはCA/PA/人格を出さない
+    const v = viewOf(p);
     const line = (k: string, cell: string) => `<div class="d-row"><span>${k}</span><span>${cell}</span></div>`;
     const gateNote =
       v.scoutLevel === 0 ? "未スカウト：専門技能の星のみ。CA・PA・人格はスカウトで開示されます。"
@@ -613,20 +636,65 @@ function rosterPanel(): string {
   </section>`;
 }
 
-/** 採用市場テーブル（スカウト／採用）。 */
+/** 採用市場（v0.10：約500人の単一DBを国別タブ＋スカウトサブスクで捌く）。 */
 function recruitPanel(): string {
   const skill = companyScoutSkill(state);
-  const pool = poolPeople(state).slice()
-    .sort((a, b) => scoutedView(b, skill).occStars - scoutedView(a, skill).occStars)
-    .slice(0, 16);
+  const home = state.company.foundedCountry;
+  const sel = recruitCountry ?? home;
+  const subscribed = state.scoutSubscriptions.includes(sel);
+  const selIsHome = sel === home;
+
+  // 国別タブ（加入状況バッジ付き）。件数は加入国のみ開示（未加入は「不明」）。
+  const tabs = PLAYABLE.map((c) => {
+    const on = state.scoutSubscriptions.includes(c);
+    const active = c === sel ? "active" : "";
+    const badge = c === home ? `<span class="sub-on">本拠地</span>`
+      : on ? `<span class="sub-on">加入中</span>` : `<span class="sub-off">未加入</span>`;
+    return `<button class="ctab ${active}" data-rctry="${c}">${COUNTRY_LABEL[c]} ${badge}</button>`;
+  }).join("");
+
+  let body: string;
+  if (!subscribed) {
+    // 未加入国：★も素性も一切出さない（完全フォグ）。加入導線のみ。
+    body = `<div class="sub-locked">
+      <div class="lock-ic">🔒</div>
+      <div><b>${COUNTRY_LABEL[sel]}の人材は未加入のため不明です。</b>
+        <div class="muted">スカウトサブスクに加入すると、この国の候補者の★（技能概要）が見え、個別スカウトで深掘りできます。</div></div>
+      <button class="primary" data-sub="${sel}">加入して開示（月額$${fmt(SCOUT_SUB_COST[sel])} / ${1}AP）</button>
+    </div>`;
+  } else {
+    // 加入国：その国の候補を★順に抜粋（500人対策で上位24名に絞って描画）。
+    const pool = poolPeople(state)
+      .filter((p) => p.nationality === sel)
+      .sort((a, b) => occStarsOf(b) - occStarsOf(a))
+      .slice(0, 24);
+    const rows = pool.length
+      ? pool.map((p) => candidateRow(p, viewOf(p))).join("")
+      : `<tr><td colspan="10" class="muted">この国の候補は現在いません。</td></tr>`;
+    const subInfo = selIsHome
+      ? `<span class="sub-on">本拠地</span> 無料（地元の採用網）`
+      : `<span class="sub-on">加入中</span> 月額$${fmt(SCOUT_SUB_COST[sel])}／月 <button class="mini ghost" data-unsub="${sel}">解約</button>`;
+    body = `<div class="sub-bar">
+        ${subInfo}
+        <span class="muted">${COUNTRY_LABEL[sel]}の候補 上位24名（★順・氏名クリックで詳細）</span>
+      </div>
+      <table>
+        <thead><tr><th>氏名</th><th>職種</th><th>年齢</th><th>国籍</th><th>技能</th><th>CA</th><th>PA</th><th>忠誠</th><th>要求給与</th><th>操作</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
   return `<section class="panel">
-    <h2>採用市場（全${state.poolIds.length}名から抜粋・分析スキル ${skill.toFixed(1)}）
-      <span class="legend">氏名クリックで詳細。未スカウトはCA・PAも不明 → スカウトで「星→ぼやけ→正確値」開示</span></h2>
-    <table>
-      <thead><tr><th>氏名</th><th>職種</th><th>年齢</th><th>国籍</th><th>技能</th><th>CA</th><th>PA</th><th>忠誠</th><th>要求給与</th><th>操作</th></tr></thead>
-      <tbody>${pool.map((p) => candidateRow(p, scoutedView(p, skill))).join("")}</tbody>
-    </table>
+    <h2>採用市場（ワールドDB ${state.poolIds.length}名・分析スキル ${skill.toFixed(1)}）
+      <span class="legend">国別サブスク＝可視性ゲート。加入国のみ★開示→個別スカウトでCA/PAを深掘り。採用は会社評判が必要。</span></h2>
+    <div class="ctabs">${tabs}</div>
+    ${body}
   </section>`;
+}
+
+/** 可視性を織り込んだ★（未加入国は0＝非表示）。 */
+function occStarsOf(p: Parameters<typeof scoutedView>[0]): number {
+  return viewOf(p).occStars;
 }
 
 /** ログパネル（概要タブ等で使用）。 */
@@ -777,7 +845,7 @@ function render(): void {
     state = initGame({ seed: freshSeed(), country: "US", archetype });
     choosingArchetype = false;
     toast = archetype === "labor" ? "労働集約で新規開始しました。" : "知識集約で新規開始しました。";
-    selectedPersonId = null; activeTab = "overview"; render();
+    selectedPersonId = null; recruitCountry = null; activeTab = "overview"; render();
   };
   app.querySelectorAll<HTMLElement>("[data-arch]").forEach((el) =>
     el.addEventListener("click", () => startWith(el.dataset.arch as "labor" | "knowledge"))
@@ -807,6 +875,16 @@ function render(): void {
   );
   app.querySelectorAll<HTMLButtonElement>("[data-hire]").forEach((b) =>
     b.addEventListener("click", () => apply(hireCandidate(state, b.dataset.hire!)))
+  );
+  // --- 国別スカウトサブスク（v0.10）：タブ切替・加入・解約 ---
+  app.querySelectorAll<HTMLButtonElement>("[data-rctry]").forEach((b) =>
+    b.addEventListener("click", () => { recruitCountry = b.dataset.rctry as PlayableCountry; render(); })
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-sub]").forEach((b) =>
+    b.addEventListener("click", () => { recruitCountry = b.dataset.sub as PlayableCountry; apply(subscribeScoutCountry(state, b.dataset.sub as PlayableCountry)); })
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-unsub]").forEach((b) =>
+    b.addEventListener("click", () => apply(unsubscribeScoutCountry(state, b.dataset.unsub as PlayableCountry)))
   );
   app.querySelectorAll<HTMLSelectElement>("[data-assign]").forEach((sel) =>
     sel.addEventListener("change", () => apply(assignRole(state, sel.dataset.assign!, sel.value as Role)))

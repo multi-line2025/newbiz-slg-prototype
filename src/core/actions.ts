@@ -11,11 +11,12 @@
 import type { Person, Id, Role, Contract, PlayableCountry } from "./model/types";
 import type { ProtoGameState, Product } from "./state";
 import { employees } from "./state";
-import { SCOUT_STEPS, AP_COST, RESEARCH_BUDGET_STEP, MARKET_BUDGET_STEP, ANALYSIS_STEPS } from "./model/constants";
+import { SCOUT_STEPS, AP_COST, RESEARCH_BUDGET_STEP, MARKET_BUDGET_STEP, ANALYSIS_STEPS, SCOUT_SUB_AP, SCOUT_SUB_COST } from "./model/constants";
 import { getBlueprint, blueprintStatus } from "./research";
 import { marketSizeOf } from "./markets";
 import { analysisSkill } from "./analysis";
 import { refreshDerived } from "./finance";
+import { reachablePaMax } from "./talentPool";
 
 /** アクションの結果。ok=false なら state は元のまま。 */
 export interface ActionResult {
@@ -50,6 +51,10 @@ function withPerson(state: ProtoGameState, p: Person): Record<Id, Person> {
 export function scoutCandidate(state: ProtoGameState, personId: Id): ActionResult {
   const p = state.people[personId];
   if (!p) return fail(state, "対象が見つかりません。");
+  // v0.10：個別スカウト（深掘り）は加入国の候補にのみ実行可能（可視性ゲート）
+  if (!state.scoutSubscriptions.includes(p.nationality as PlayableCountry)) {
+    return fail(state, `${p.name}の国は未加入です（スカウトサブスクに加入すると深掘りできます）。`);
+  }
   if (p.scoutLevel >= 2) return fail(state, `${p.name}は既に精密調査済みです。`);
 
   const step = SCOUT_STEPS[p.scoutLevel]; // 0→1 は index0、1→2 は index1
@@ -72,6 +77,42 @@ export function scoutCandidate(state: ProtoGameState, personId: Id): ActionResul
 }
 
 /**
+ * 国別スカウトサブスクに加入する（v0.10）。加入国の候補者の★が見え、個別深掘りが可能になる。
+ * 加入は 1AP。月額はその後の monthlyBurn に加算される（前払い無し）。
+ */
+export function subscribeScoutCountry(state: ProtoGameState, country: PlayableCountry): ActionResult {
+  if (state.scoutSubscriptions.includes(country)) return fail(state, `${country}は既に加入済みです。`);
+  if (state.ap < SCOUT_SUB_AP) return fail(state, `APが足りません（必要${SCOUT_SUB_AP}AP）。`);
+  return {
+    state: refreshDerived({
+      ...state,
+      ap: state.ap - SCOUT_SUB_AP,
+      scoutSubscriptions: [...state.scoutSubscriptions, country],
+    }),
+    ok: true,
+    message: `スカウトサブスク加入：${country}（月額$${SCOUT_SUB_COST[country]}／候補の★が開示）`,
+  };
+}
+
+/**
+ * 国別スカウトサブスクを解約する（v0.10）。いつでも解約可（0AP）。
+ * 解約でその国の候補は再びフォグ（★・素性が不明）に戻り、新規の個別深掘りは不可になる。
+ * （既存の深掘り結果は保持し、再加入で再び見える。）
+ */
+export function unsubscribeScoutCountry(state: ProtoGameState, country: PlayableCountry): ActionResult {
+  if (country === state.company.foundedCountry) return fail(state, `本拠地(${country})は常に加入・無料のため解約できません。`);
+  if (!state.scoutSubscriptions.includes(country)) return fail(state, `${country}は未加入です。`);
+  return {
+    state: refreshDerived({
+      ...state,
+      scoutSubscriptions: state.scoutSubscriptions.filter((c) => c !== country),
+    }),
+    ok: true,
+    message: `スカウトサブスク解約：${country}（可視性が戻り、月額$${SCOUT_SUB_COST[country]}が外れました）`,
+  };
+}
+
+/**
  * 採用オファー（§4.3）。候補者を雇用し、実効要求給与で契約を結ぶ。
  * 給与は毎ターンのバーンに反映される（前払いはしない）。
  */
@@ -79,6 +120,11 @@ export function hireCandidate(state: ProtoGameState, personId: Id): ActionResult
   const p = state.people[personId];
   if (!p) return fail(state, "対象が見つかりません。");
   if (!state.poolIds.includes(personId)) return fail(state, `${p.name}は候補プールにいません。`);
+  // v0.10：採用可否ゲート＝会社評判。高PA人材は評判が足りないと来てくれない（可視性とは別軸）。
+  const gate = reachablePaMax(state.company.reputation);
+  if (p.PA > gate) {
+    return fail(state, `${p.name}(PA${p.PA})は評判が足りず採用できません（現在の到達上限PA${gate}）。`);
+  }
   if (state.ap < AP_COST.hire) return fail(state, `APが足りません（必要${AP_COST.hire}AP）。`);
 
   const salary = p.salaryDemand; // §4.3本式で算出済み（起業国の最低賃金係数込み）

@@ -46,10 +46,11 @@ export function blurToRange(trueVal: number, error: number, id: string, lo: numb
   };
 }
 
-/** UIに渡す「見えている情報」。scoutLevel でゲートされる。 */
+/** UIに渡す「見えている情報」。国別サブスク（可視性）→ scoutLevel（深掘り）の順でゲート。 */
 export interface ScoutView {
+  visible: boolean; // v0.10：その人物の国のサブスク加入時のみ true。false＝★含め一切不明
   scoutLevel: 0 | 1 | 2;
-  occStars: number; // 専門技能の粗い星 1-5（全レベルで可視）
+  occStars: number; // 専門技能の粗い星 1-5（加入国のみ・全レベルで可視）
   caKnown: number | null; // ★オーナー要望：未スカウト(level0)ではCAも非表示。level1以上で開示
   paKnown: number | null; // level2でのみ正確値
   paRange: Range | null; // level1でのレンジ
@@ -57,6 +58,13 @@ export interface ScoutView {
   loyaltyRange: Range | null; // level1
   controversyKnown: number | null; // level2（不祥事リスクの目安）
 }
+
+/** 完全フォグ（未加入国）：★も素性も一切不明。 */
+const FOGGED: ScoutView = {
+  visible: false, scoutLevel: 0, occStars: 0,
+  caKnown: null, paKnown: null, paRange: null,
+  loyaltyKnown: null, loyaltyRange: null, controversyKnown: null,
+};
 
 /** 専門技能の平均から粗い星（1-5）を出す。 */
 export function occStars(p: Person): number {
@@ -68,14 +76,19 @@ export function occStars(p: Person): number {
 /**
  * 候補者の見えている情報を組み立てる。
  * @param scoutSkill 調査担当のスキル（max(management, research)）
+ * @param visible その人物の国のスカウトサブスクに加入中か（v0.10・可視性ゲート）。
+ *                false＝未加入国 → ★も含め一切不明（完全フォグ）。既定 true（社員=常に可視）。
  */
-export function scoutedView(p: Person, scoutSkill: number): ScoutView {
+export function scoutedView(p: Person, scoutSkill: number, visible = true): ScoutView {
+  if (!visible) return FOGGED; // 未加入国：★も素性も出さない
+
   const level = p.scoutLevel;
   const stars = occStars(p);
 
   if (level === 0) {
-    // ★未スカウト：専門技能の粗い星のみ。CA・PA・人格は一切不明（オーナー要望）
+    // ★未スカウト（加入国）：専門技能の粗い星のみ。CA・PA・人格は一切不明（オーナー要望）
     return {
+      visible: true,
       scoutLevel: 0,
       occStars: stars,
       caKnown: null,
@@ -91,6 +104,7 @@ export function scoutedView(p: Person, scoutSkill: number): ScoutView {
     const paErr = SCOUT_STEPS[0].baseErrorPA * f;
     const perErr = SCOUT_STEPS[0].baseErrorPersona * f;
     return {
+      visible: true,
       scoutLevel: 1,
       occStars: stars,
       caKnown: p.CA,
@@ -104,6 +118,7 @@ export function scoutedView(p: Person, scoutSkill: number): ScoutView {
 
   // level 2：正確値
   return {
+    visible: true,
     scoutLevel: 2,
     occStars: stars,
     caKnown: p.CA,

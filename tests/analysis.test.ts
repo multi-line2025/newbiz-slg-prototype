@@ -10,9 +10,10 @@ import { marketEff } from "../src/core/markets";
 import { employees, poolPeople } from "../src/core/state";
 import type { ProtoGameState } from "../src/core/state";
 
-/** リサーチャーを1名雇い researcher に配属した状態。 */
+/** リサーチャーを1名雇い researcher に配属した状態（v0.10：評判ゲートPA<=120で雇える候補）。 */
 function withResearcher(s: ProtoGameState): ProtoGameState {
-  const cand = poolPeople(s).find((p) => p.jobCategory === "researcher") ?? poolPeople(s)[0];
+  const hireable = poolPeople(s).filter((p) => p.PA <= 120);
+  const cand = hireable.find((p) => p.jobCategory === "researcher") ?? hireable[0];
   s = hireCandidate(s, cand.id).state;
   s = assignRole(s, cand.id, "researcher").state;
   return s;
@@ -102,8 +103,9 @@ describe("製品投入 & 多市場売上（要望②・§5-D）", () => {
     expect(r.ok).toBe(true);
     s = r.state;
     expect(s.products.length).toBe(before + 1);
-    // エンジニアを新製品へ配属（プール構成に依らずQUALが立つよう、居なければ任意候補で代替）
-    const eng = poolPeople(s).find((p) => p.jobCategory === "engineer") ?? poolPeople(s)[0];
+    // エンジニアを新製品へ配属（v0.10：採用は評判ゲートPA<=120。雇える候補から選ぶ）
+    const hireable = poolPeople(s).filter((p) => p.PA <= 120);
+    const eng = hireable.find((p) => p.jobCategory === "engineer") ?? hireable[0];
     if (eng) {
       s = hireCandidate(s, eng.id).state;
       s = assignRole(s, eng.id, "engineer").state;

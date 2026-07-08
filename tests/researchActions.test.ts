@@ -9,9 +9,11 @@ import { setResearchBudget, unlockBlueprint, assignRole, hireCandidate } from ".
 import { poolPeople } from "../src/core/state";
 import type { ProtoGameState } from "../src/core/state";
 
-/** リサーチャーを1名雇い researcher に配属した状態を作る。 */
+/** リサーチャーを1名雇い researcher に配属した状態を作る。
+ *  v0.10：採用は評判ゲート（無名企業 rep10 → PA<=120 のみ採用可）なので、雇える候補を選ぶ。 */
 function withResearcher(s: ProtoGameState): ProtoGameState {
-  const cand = poolPeople(s).find((p) => p.jobCategory === "researcher") ?? poolPeople(s)[0];
+  const hireable = poolPeople(s).filter((p) => p.PA <= 120);
+  const cand = hireable.find((p) => p.jobCategory === "researcher") ?? hireable[0];
   s = hireCandidate(s, cand.id).state;
   s = assignRole(s, cand.id, "researcher").state;
   return s;
