@@ -102,8 +102,8 @@ describe("製品投入 & 多市場売上（要望②・§5-D）", () => {
     expect(r.ok).toBe(true);
     s = r.state;
     expect(s.products.length).toBe(before + 1);
-    // エンジニアを新製品へ配属
-    const eng = poolPeople(s).find((p) => p.jobCategory === "engineer");
+    // エンジニアを新製品へ配属（プール構成に依らずQUALが立つよう、居なければ任意候補で代替）
+    const eng = poolPeople(s).find((p) => p.jobCategory === "engineer") ?? poolPeople(s)[0];
     if (eng) {
       s = hireCandidate(s, eng.id).state;
       s = assignRole(s, eng.id, "engineer").state;

@@ -9,7 +9,7 @@
  */
 
 import type { Person, Id, Era, PlayableCountry } from "./model/types";
-import type { Sector } from "./model/constants";
+import type { Sector, Archetype } from "./model/constants";
 
 /**
  * プロトタイプ用の会社リソース。
@@ -100,6 +100,7 @@ export interface Product {
 /** プロトタイプの全体状態。 */
 export interface ProtoGameState {
   turn: number; // 現在ターン（1ターン=1ヶ月）
+  archetype: Archetype; // 業態（knowledge=知識集約／labor=労働集約・v0.8）。開始時に確定
   era: Era; // 現在Era（turnとstartEraから毎ターン更新・§7.1）
   startEra: Era; // 開始Era（Era進行の基準）
   company: ProtoCompany;

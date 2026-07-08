@@ -18,10 +18,10 @@ import { applyFinance, computeRevenue } from "./finance";
 import { applyGrowth, envFromMorale } from "./growth";
 import { recomputeLifeExpectancy } from "./person";
 import { stepProductMarket } from "./market";
-import { computeQualP } from "./product";
+import { computeQualP, laborCapacity } from "./product";
 import { discloseValues } from "./analysis";
 import { stepDynamics, staleEff } from "./dynamics";
-import { rpPerTurn, eraForTurn, sectorTier } from "./research";
+import { rpPerTurn, eraForTurn, sectorTier, getBlueprint } from "./research";
 import { checkAchievements } from "./achievements";
 import { makePRNG } from "./prng";
 import { clamp } from "./util";
@@ -121,7 +121,10 @@ export function advanceTurn(state: ProtoGameState): TurnResult {
     if (!market) return p;
     const team = productTeam(s, p.id);
     const tier = sectorTier(p.sector, s.company.unlockedBlueprints);
-    const r = stepProductMarket(p, team, market, s.company, s.era, s.marketSeed, tier);
+    // v0.8：労働集約は頭数スループット(laborCapacity)で競争力が決まる。知識集約は現行。
+    const archetype = getBlueprint(p.blueprintId)?.archetype ?? "knowledge";
+    const laborCap = archetype === "labor" ? laborCapacity(team) : 0;
+    const r = stepProductMarket(p, team, market, s.company, s.era, s.marketSeed, tier, archetype, laborCap);
     markets[p.marketId] = { ...market, nearRivals: r.nearRivals };
     thxpDelta += r.dTHxP;
     events.push(...r.events);

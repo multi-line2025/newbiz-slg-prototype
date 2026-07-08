@@ -13,6 +13,7 @@ import type { OccupationalAttributes, MentalAttributes } from "./model/types";
 import {
   TEAM_WEIGHTS, QUAL_POLISH_MIN, QUAL_POLISH_MAX, DEV_RAMP, ERA_OBSOLETE,
   QUAL_TIER_CAP, DEV_SPEC_K,
+  LABOR_QUAL_BASE, LABOR_TIER_CAP, KLABOR_CONS, KLABOR_MGMT_Q, KLABOR_MGMT,
 } from "./model/constants";
 import { getBlueprint, eraIndex, type ProtoBlueprint } from "./research";
 import { activityCoeff } from "./market";
@@ -79,13 +80,69 @@ export function tierCap(tier: number): number {
   return QUAL_TIER_CAP[clamp(Math.max(1, tier), 1, QUAL_TIER_CAP.length) - 1];
 }
 
+/* ============================================================
+ * 労働集約型の産出モデル（設計提案§3・v0.8）
+ * ----------------------------------------------------------------
+ *  知識集約が「エース加重の技能合成」なのに対し、労働集約は
+ *  「頭数×基礎資質の線形和（スループット）」で決まる。一般人材が主役。
+ * ============================================================ */
+
 /**
- * §2.3-5／§5.2 製品QUAL_p（0-100）。担当チーム・開発成熟・時代適合の合成に tier天井を適用。
- * @param tier そのセクターの到達tier（1..4）。汎用tier1は中品質止まり、特化tier4で100到達可。
+ * §3.1 基礎資質 baseAptitude（0..1）。単純作業をコツコツ回す資質。
+ *  ＝(体力+健康+協調性+一貫性)/(4×20)。CA/PA・職業技能に依存しない
+ *  （＝評判ゲートで届く“質”が低い一般人材でも高くなり得る属性群）。
+ */
+export function baseAptitude(p: Person): number {
+  const a = p.attributes;
+  return (a.condition.stamina + a.condition.health + a.mental.teamwork + a.hidden.consistency) / (4 * 20);
+}
+
+/**
+ * §3.1 スループット（労働キャパシティの素）。配属者を“全員フル計上”で線形和。
+ *  ＝Σ baseAptitude(p) × activityCoeff(p)。頭数がそのまま戦力になる。
+ */
+export function laborThroughput(team: Person[]): number {
+  return team.reduce((sum, p) => sum + baseAptitude(p) * activityCoeff(p), 0);
+}
+
+/** チーム中の最良 management（現場管理の乗数用・0..20）。 */
+function bestManagement(team: Person[]): number {
+  return team.reduce((m, p) => Math.max(m, p.attributes.occupational.management), 0);
+}
+
+/** チームの平均 consistency（一貫性・0..20）。 */
+function avgConsistency(team: Person[]): number {
+  if (team.length === 0) return 0;
+  return team.reduce((s, p) => s + p.attributes.hidden.consistency, 0) / team.length;
+}
+
+/** §3.2 現場管理の乗数 mgmtMult ＝ 1 + KLABOR_MGMT × (bestManagement/20)。 */
+export function mgmtMult(team: Person[]): number {
+  return 1 + KLABOR_MGMT * (bestManagement(team) / 20);
+}
+
+/** §3.1-3.2 労働キャパシティ ＝ スループット × 現場管理乗数（＝頭数×資質×まとめ役）。 */
+export function laborCapacity(team: Person[]): number {
+  return laborThroughput(team) * mgmtMult(team);
+}
+
+/** §3.3 労働集約の製品QUAL_p（低い床に固定＝“効くレバー帯”に収める・低天井）。 */
+export function computeQualPLabor(team: Person[]): number {
+  const q = LABOR_QUAL_BASE
+    + KLABOR_CONS * (avgConsistency(team) / 20)     // 現場の一貫性で微増
+    + KLABOR_MGMT_Q * (bestManagement(team) / 20);  // 現場管理で微増
+  return clamp(q, 0, LABOR_TIER_CAP);
+}
+
+/**
+ * §2.3-5／§5.2 製品QUAL_p（0-100）。業態(archetype)で分岐。
+ *  labor＝頭数スループット由来の低い床固定QUAL、knowledge＝現行のエース加重合成×tier天井。
+ * @param tier そのセクターの到達tier（1..4・knowledgeのみ）。汎用tier1は中品質止まり。
  */
 export function computeQualP(blueprintId: string, team: Person[], devTurns: number, era: Era, tier = 1): number {
   const bp = getBlueprint(blueprintId);
   if (!bp) return 0;
+  if (bp.archetype === "labor") return computeQualPLabor(team); // 労働集約は専用式
   const composite = qualComposite(bp, team);
   const polish = qualPolish(bp, team);
   const maturity = devMaturity(devTurns, tier);

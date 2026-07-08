@@ -21,6 +21,7 @@ import {
   SECTORS as SECTORS_ALL,
   type Sector,
   type QualFormulaTerm,
+  type Archetype,
 } from "./model/constants";
 import { clamp } from "./util";
 
@@ -39,6 +40,7 @@ export interface ProtoBlueprint {
   qualPolishAbilities: (keyof import("./model/types").MentalAttributes)[]; // 副参照（qualPolish）
   tier: 1 | 2 | 3 | 4; // 【新・§5】ツリーの深さ（1=参入切符 / 4=特化の頂点）
   branchId: Sector; // 【新・§5】同一セクター連鎖の識別（＝targetSector）
+  archetype: Archetype; // 【新・v0.8】業態。knowledge=技能エース加重(現行)／labor=頭数スループット
 }
 
 /** 各セクターのブランチ定義（tier1＝参入切符）。tier2〜4は下で自動生成する。 */
@@ -115,6 +117,7 @@ function buildBlueprints(): ProtoBlueprint[] {
         qualBonus: 8, missionTags: b.missionTags, requiredLicense: b.requiredLicense,
         targetSector: b.sector, qualFormula: b.qualFormula, qualPolishAbilities: b.qualPolishAbilities,
         tier, branchId: b.sector,
+        archetype: "knowledge", // 既存24ノードは知識集約（現行モデル）
       });
       prevId = id;
     }
@@ -122,8 +125,24 @@ function buildBlueprints(): ProtoBlueprint[] {
   return out;
 }
 
-/** 全青写真（6セクター × tier1〜4 ＝ 24ノード）。 */
-export const BLUEPRINTS: ProtoBlueprint[] = buildBlueprints();
+/**
+ * 労働集約の創業青写真（v0.8・設計提案§5.2/§8-D）。
+ * 新セクターは作らず既存S5に相乗り（最小化）。産出は頭数スループット、品質は低い床に固定。
+ * qualFormula/qualPolishは labor分岐では未使用だが型のため最小定義を置く。
+ */
+const LABOR_BLUEPRINT: ProtoBlueprint = {
+  id: "BP-700", name: "受託フルフィルメント",
+  prerequisites: [], requiredEra: "dawn", rpCost: 100,
+  qualBonus: 0, missionTags: [], requiredLicense: null,
+  targetSector: "S5", // EC市場に相乗り（物流・軽作業・梱包発送）
+  qualFormula: [{ role: "sales", ability: "sales", weight: 1.0 }], // labor分岐では未使用
+  qualPolishAbilities: ["teamwork"], // labor分岐では未使用
+  tier: 1, branchId: "S5",
+  archetype: "labor",
+};
+
+/** 全青写真（6セクター × tier1〜4 ＝ 24ノード）＋労働集約1ノード。 */
+export const BLUEPRINTS: ProtoBlueprint[] = [...buildBlueprints(), LABOR_BLUEPRINT];
 
 /** セクター→そのセクターのtier1青写真（参入切符）を引く。 */
 export function blueprintForSector(sector: Sector): ProtoBlueprint | undefined {

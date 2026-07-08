@@ -143,12 +143,16 @@ export const PA_TIERS: PaTier[] = [
   { min: 185, max: 200, ratio: 0.002, label: "世代の逸材" },
 ];
 
-/** 仕様 §4.10.4 会社評判→到達可能上限PA帯（評判ゲート）。 */
+/** 仕様 §4.10.4 会社評判→到達可能上限PA帯（評判ゲート）。
+ *  v0.8：序盤を締め、成長で開く（労働集約設計提案§9）。無名は一般層(80-120)中心＝
+ *  「一般人材で下積み」体験が成立。評判を積むほど良い人材が解禁＝知識集約への転換がご褒美。 */
 export const REPUTATION_GATES: ReputationGate[] = [
-  { reputationMin: 0, reputationMax: 20, reachablePaMax: 130 }, // 無名
-  { reputationMin: 20, reputationMax: 50, reachablePaMax: 160 }, // 中堅
-  { reputationMin: 50, reputationMax: 80, reachablePaMax: 185 }, // 有名
-  { reputationMin: 80, reputationMax: 100, reachablePaMax: 200 }, // 業界の伝説
+  { reputationMin: 0, reputationMax: 10, reachablePaMax: 105 }, // 無名：ほぼ一般(80-120)のみ
+  { reputationMin: 10, reputationMax: 25, reachablePaMax: 120 }, // 駆け出し：一般上位まで
+  { reputationMin: 25, reputationMax: 45, reachablePaMax: 140 }, // 実績→「優秀」に手が届き始める
+  { reputationMin: 45, reputationMax: 70, reachablePaMax: 165 }, // 「一流」参入
+  { reputationMin: 70, reputationMax: 90, reachablePaMax: 185 }, // 「超一流」
+  { reputationMin: 90, reputationMax: 100, reachablePaMax: 200 }, // 「世代の逸材」
 ];
 
 /* ============================================================
@@ -485,3 +489,27 @@ export const MISSION_CONFLICTS: Record<string, string[]> = {
 
 /** 会社ミッションの初期タグ（プロトタイプ既定）。 */
 export const DEFAULT_MISSION_TAGS = ["雇用創出"];
+
+/* ============================================================
+ * 14. 業態アーキタイプ・労働集約型（労働集約型業態 設計提案v0.1）  ★v0.8
+ * ============================================================ */
+
+/** 業態アーキタイプ。knowledge=知識集約(現行)／labor=労働集約(新規)。 */
+export type Archetype = "knowledge" | "labor";
+
+/**
+ * 労働集約型の産出係数（設計提案§3・§7・すべて★要プレイテスト）。
+ *  品質はエース加重でなく「頭数×基礎資質の線形和（スループット）」で決まる。
+ *  一般人材(7割の在庫)が“頭数”として戦力になる業態。
+ */
+// §3.3 品質は低い床に固定（v0.7.2で直した「効くレバー帯」＝口コミ40超・広告逆噴射28超に収める）
+export const LABOR_QUAL_BASE = 46; // 労働集約の基礎QUAL（口コミ発動40の上）
+export const LABOR_TIER_CAP = 56; // 労働集約のQUAL天井（＝低天井。知識集約の独占には届かない）
+export const KLABOR_CONS = 8; // 現場の一貫性(avgConsistency/20)でQUAL微増（最大+8）
+export const KLABOR_MGMT_Q = 6; // 現場管理(bestManagement/20)でQUAL微増（最大+6）
+
+// §3.4 競争力はスループット主導（qualCoreの代替）
+export const QLABOR_CORE = 1.05; // 労働集約C_pの芯（頭数6名で序盤黒字化＝初心者向け。損益分岐T4〜13）
+export const KLABOR_TH = 0.5; // 頭数(laborCapacity)1あたり競争力+50%＝頭数=主レバー
+// §3.2 現場管理の乗算（頭数の代替にはしない、まとめ役の底上げ）
+export const KLABOR_MGMT = 0.35; // bestManagement/20 で laborCapacity を最大+35%

@@ -124,10 +124,12 @@ describe("青写真tier：特化 vs 汎用（§5）", () => {
     expect(bd.depth).toBe(3); // S1の最深tier3
   });
 
-  it("全ブランチが tier1〜4 の連鎖を持つ（6セクター×4＝24ノード）", () => {
-    expect(BLUEPRINTS.length).toBe(24);
+  it("全ブランチが tier1〜4 の連鎖を持つ（知識6セクター×4＝24ノード＋労働1＝計25）", () => {
+    expect(BLUEPRINTS.length).toBe(25); // v0.8：労働集約BP-700を追加
+    const knowledge = BLUEPRINTS.filter((b) => b.archetype === "knowledge");
+    expect(knowledge.length).toBe(24);
     for (const sec of ["S1", "S2", "S3", "S4", "S5", "S6"] as const) {
-      const tiers = BLUEPRINTS.filter((b) => b.targetSector === sec).map((b) => b.tier).sort();
+      const tiers = knowledge.filter((b) => b.targetSector === sec).map((b) => b.tier).sort();
       expect(tiers).toEqual([1, 2, 3, 4]);
     }
   });

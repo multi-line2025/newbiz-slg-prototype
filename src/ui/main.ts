@@ -86,6 +86,8 @@ const TABS: { id: TabId; label: string }[] = [
 ];
 // アクティブタブはUI層のモジュール状態（ターン送り/セーブ/ロードでも保持。新規開始で概要へ）。
 let activeTab: TabId = "overview";
+// 新規開始時の業態選択モーダル表示フラグ（v0.8）。表示中は選択するまでゲームを始めない。
+let choosingArchetype = false;
 
 const fmt = (n: number): string => Math.round(n).toLocaleString();
 const runwayText = (n: number): string => (isFinite(n) ? `${n.toFixed(1)} ヶ月` : "∞");
@@ -524,6 +526,29 @@ function gameOverOverlay(): string {
   </div>`;
 }
 
+/** 新規開始：業態（archetype）選択モーダル（v0.8）。初心者は労働集約がデフォルト。 */
+function archetypeModal(): string {
+  if (!choosingArchetype) return "";
+  return `<div class="modal-bg">
+    <div class="modal">
+      <div class="modal-head"><h3>どの業態で起業しますか？</h3></div>
+      <p class="muted">はじめてなら「労働集約」がおすすめ。人を集めて回すほど売上が立ちます。</p>
+      <div class="arch-choices">
+        <button class="arch-card" data-arch="labor">
+          <div class="arch-title">🏭 受託フルフィルメント</div>
+          <div class="arch-sub"><b>労働集約・初心者向け（推奨）</b></div>
+          <div class="arch-desc">一般作業員を数多く雇い、頭数×コツコツ力で稼ぐ。品質の天井は低いが、序盤から黒字化しやすく安定。</div>
+        </button>
+        <button class="arch-card" data-arch="knowledge">
+          <div class="arch-title">💻 ソフトウェア / EC</div>
+          <div class="arch-sub"><b>知識集約・上級者向け</b></div>
+          <div class="arch-desc">少数精鋭のエースで高品質プロダクトを磨く。育成・研究・特化で品質100・市場独占も狙えるが、軌道に乗せるのが難しい。</div>
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
 /* ============================================================
  * FM風 トップバー（グローバルHUD）＋タブバー
  * ============================================================ */
@@ -628,6 +653,7 @@ function overviewTab(): string {
   return `
     <section class="kpis">
       <div class="kpi"><div class="k">ターン</div><div class="v">${state.turn}</div></div>
+      <div class="kpi"><div class="k">業態</div><div class="v" style="font-size:15px">${state.archetype === "labor" ? "🏭 労働集約" : "💻 知識集約"}</div></div>
       <div class="kpi"><div class="k">CASH</div><div class="v">$${fmt(c.CASH)}</div></div>
       <div class="kpi ${runwayWarn}"><div class="k">ランウェイ</div><div class="v">${runwayText(c.runwayTurns)}</div></div>
       <div class="kpi"><div class="k">月次バーン</div><div class="v">$${fmt(c.monthlyBurn)}</div></div>
@@ -728,6 +754,7 @@ function render(): void {
     <main class="tabview">${tabContent()}</main>
     ${detailModal()}
     ${gameOverOverlay()}
+    ${archetypeModal()}
   `;
 
   // --- タブ切替（アクティブタブはUI状態として保持）---
@@ -744,7 +771,17 @@ function render(): void {
   });
 
   // --- セーブ / ロード / 新規開始 ---
-  const newGame = () => { state = initGame({ seed: freshSeed(), country: "US" }); toast = "新規開始しました。"; selectedPersonId = null; activeTab = "overview"; render(); };
+  // 新規開始はまず業態選択モーダルを開く（v0.8）。選択後に initGame。
+  const newGame = () => { choosingArchetype = true; render(); };
+  const startWith = (archetype: "labor" | "knowledge") => {
+    state = initGame({ seed: freshSeed(), country: "US", archetype });
+    choosingArchetype = false;
+    toast = archetype === "labor" ? "労働集約で新規開始しました。" : "知識集約で新規開始しました。";
+    selectedPersonId = null; activeTab = "overview"; render();
+  };
+  app.querySelectorAll<HTMLElement>("[data-arch]").forEach((el) =>
+    el.addEventListener("click", () => startWith(el.dataset.arch as "labor" | "knowledge"))
+  );
   document.getElementById("save")?.addEventListener("click", () => {
     toast = storage.save(state) ? "セーブしました。" : "セーブに失敗しました。"; render();
   });

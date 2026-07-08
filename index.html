@@ -208,6 +208,13 @@
       .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
       .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; max-width: 720px; width: 100%; max-height: 86vh; overflow-y: auto; }
       .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; }
+      /* 新規開始：業態選択カード（v0.8） */
+      .arch-choices { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+      .arch-card { flex: 1 1 260px; text-align: left; background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; color: inherit; transition: border-color .12s, transform .12s; }
+      .arch-card:hover { border-color: var(--accent, #4a9); transform: translateY(-2px); }
+      .arch-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+      .arch-sub { font-size: 12px; margin-bottom: 8px; }
+      .arch-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
       .modal .muted, .muted { color: var(--muted); font-size: 12px; }
       .d-kpis { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; font-size: 13px; }
       .d-note { color: var(--muted); font-size: 12px; margin-bottom: 10px; }

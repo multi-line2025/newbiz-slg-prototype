@@ -54,9 +54,9 @@ describe("generateTalentPool", () => {
   });
 
   it("reachablePaMax：評判が高いほど到達上限が上がる", () => {
-    expect(reachablePaMax(10)).toBe(130); // 無名
-    expect(reachablePaMax(35)).toBe(160); // 中堅
-    expect(reachablePaMax(65)).toBe(185); // 有名
+    expect(reachablePaMax(10)).toBe(120); // 無名（v0.8ゲート改定）
+    expect(reachablePaMax(35)).toBe(140); // 中堅
+    expect(reachablePaMax(65)).toBe(165); // 有名
     expect(reachablePaMax(90)).toBe(200); // 伝説
   });
 });

@@ -19,6 +19,7 @@ import {
   KAD, KPR, KREP_ORG, KSALES, KCOMM_TH, KCOMM_S,
   QUAL_AD_BACKFIRE, QUAL_AD_FIT_FULL, BACKFIRE_K, BACKFIRE_TH,
   DECAY_PAID, DECAY_STICKY, ERODE_STICKY, RIVAL_GROWTH, SPEC_CP_K,
+  QLABOR_CORE, KLABOR_TH,
 } from "./model/constants";
 import { densityOf, marketEff } from "./markets";
 import { clamp } from "./util";
@@ -78,11 +79,24 @@ export function qualCore(qual: number): number {
 }
 
 /**
- * 製品競争力 C_p（§2.4＋動的§5.2 特化ムーバー）。QUAL項を製品QUAL_pに差し替え、
- * tier深度で ×(1+SPEC_CP_K×(tier−1)) の特化ボーナスを乗せる。
- * @param tier そのセクターの到達tier（1..4。未指定は1）
+ * 製品競争力 C_p（§2.4＋動的§5.2＋v0.8 業態分岐）。
+ *  knowledge：QUAL主導（qualCore）×セールス×THxP×評判×tier特化ボーナス（現行）。
+ *  labor：頭数主導。QLABOR_CORE×(1+KLABOR_TH×laborCap)×評判（qualCore/sales/THxP/tierは無効）。
+ * @param tier knowledgeのtier（1..4）
+ * @param archetype 業態（labor は頭数スループット主導）
+ * @param laborCap 事前計算した laborCapacity（labor時のみ使用・循環import回避のため引数で受ける）
  */
-export function productCompetitiveness(qualP: number, team: Person[], company: ProtoCompany, tier = 1): number {
+export function productCompetitiveness(
+  qualP: number, team: Person[], company: ProtoCompany,
+  tier = 1, archetype: "knowledge" | "labor" = "knowledge", laborCap = 0
+): number {
+  if (archetype === "labor") {
+    return (
+      QLABOR_CORE *
+      (1 + KLABOR_TH * laborCap) *
+      (1 + KCOMP_REP * (company.reputation / 100))
+    );
+  }
   const specBonus = 1 + SPEC_CP_K * (Math.max(1, tier) - 1);
   return (
     qualCore(qualP) *
@@ -151,13 +165,15 @@ export function stepProductMarket(
   company: ProtoCompany,
   era: Era,
   seed: number,
-  tier = 1
+  tier = 1,
+  archetype: "knowledge" | "labor" = "knowledge",
+  laborCap = 0
 ): ProductStepResult {
   const events: string[] = [];
   const M = marketEff({ sector: market.sector, country: market.country, biasFactor: market.biasFactor, maturity: market.maturity }, era);
 
   const qualP = product.QUAL_p;
-  const cP = productCompetitiveness(qualP, team, company, tier);
+  const cP = productCompetitiveness(qualP, team, company, tier, archetype, laborCap);
   const sumCr = marketRivalComp(market, era, seed);
   const sEarned = earnedShareCap(cP, sumCr);
   const sReach = reachShareCap(qualP, sEarned);
