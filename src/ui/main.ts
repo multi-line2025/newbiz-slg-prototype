@@ -30,6 +30,7 @@ import {
   type MarketChannel,
 } from "../core/actions";
 import { scoutedView, type ScoutView } from "../core/scout";
+import { aggregateRivals, type RivalView } from "../core/rivals";
 import { BLUEPRINTS, blueprintStatus, researchCoeff, rpPerTurn, blueprintForSector, sectorTier, breadthDepth, type LockReason } from "../core/research";
 import {
   productCompetitiveness, marketRivalComp, earnedShareCap, reachShareCap, productRevenue,
@@ -76,11 +77,12 @@ let toast = ""; // 直近アクションの結果メッセージ
 let selectedPersonId: string | null = null; // 詳細ビュー対象（nullで閉じる）
 
 /** FM風タブ（グローバルHUDは常時表示、内容だけ切り替え）。 */
-type TabId = "overview" | "talent" | "market" | "products" | "research" | "finance" | "achievements";
+type TabId = "overview" | "talent" | "market" | "rivals" | "products" | "research" | "finance" | "achievements";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "概要" },
   { id: "talent", label: "人材" },
   { id: "market", label: "市場分析" },
+  { id: "rivals", label: "他企業" },
   { id: "products", label: "製品" },
   { id: "research", label: "研究・青写真" },
   { id: "finance", label: "財務・組織" },
@@ -508,6 +510,67 @@ function strategyLabel(m: MarketState, fit: number | null, dormant: boolean): st
   return "・";
 }
 
+/* ============================================================
+ * 他企業（ライバル）タブ（v0.12）：各社カード＋動きログ。フォグ整合。
+ * ============================================================ */
+const SCALE_LABEL = ["零細", "小規模", "中堅", "大手", "最大手"];
+const REP_LABEL = ["無名", "新興", "中堅", "有名", "著名"];
+const FOCUS_LABEL: Record<RivalView["ambitionFocus"], string> = {
+  share: "攻勢型（シェア重視）", tech: "技術志向", expand: "拡大志向",
+};
+
+/** 動きバッジ（前ターン差分）。 */
+function movementBadges(m: RivalView["movement"]): string {
+  const b: string[] = [];
+  if (m.isNew) b.push(`<span class="mv new">🆕新規参入</span>`);
+  if (m.scaleUp) b.push(`<span class="mv up">📈規模拡大</span>`);
+  if (m.shareUp) b.push(`<span class="mv up">🔺シェア拡大</span>`);
+  if (m.shareDown) b.push(`<span class="mv down">🔻シェア縮小</span>`);
+  if (m.aggressive) b.push(`<span class="mv aggr">⚔攻勢的</span>`);
+  return b.join("");
+}
+
+/** 1社カード。 */
+function rivalCard(r: RivalView): string {
+  const cl = clamp0(r.scaleTier);
+  return `<div class="rcard">
+    <div class="rc-head"><b>${r.name}</b> <span class="muted">${r.marketLabel}</span></div>
+    <div class="rc-share"><span class="rc-pct">${(r.estShare * 100).toFixed(0)}%</span> <span class="muted">推定シェア</span></div>
+    <div class="rc-tiers">
+      <span title="規模">🏭 ${SCALE_LABEL[cl]}</span>
+      <span title="評判">⭐ ${REP_LABEL[clamp0(r.reputationTier)]}</span>
+      <span title="志向">🎯 ${FOCUS_LABEL[r.ambitionFocus]}</span>
+    </div>
+    <div class="rc-mv">${movementBadges(r.movement) || `<span class="muted">動きなし</span>`}</div>
+  </div>`;
+}
+function clamp0(n: number): number { return Math.max(0, Math.min(4, Math.round(n))); }
+
+/** 他企業タブ本体。 */
+function rivalsTab(): string {
+  const { cards, hiddenMarkets, visibleMarkets } = aggregateRivals(state);
+  const grid = cards.length
+    ? `<div class="rgrid">${cards.map(rivalCard).join("")}</div>`
+    : `<div class="muted">可視な市場にライバルがいません。市場を分析するか製品を投入すると各社が見えます。</div>`;
+  const fog = hiddenMarkets > 0
+    ? `<div class="rfog">🔒 他 ${hiddenMarkets} 市場は未分析／未参入のため各社の詳細は不明です。市場分析タブで分析すると開示されます。</div>`
+    : "";
+  const news = state.rivalNews.length
+    ? state.rivalNews.slice(-16).reverse().map((n) => `<div class="line">${n}</div>`).join("")
+    : `<div class="muted">まだ目立った動きはありません。</div>`;
+  return `
+    <section class="panel">
+      <h2>他企業（ライバル各社）<span class="legend">分析済み／参入済み市場の各社を追跡。★フォグと同様、未分析市場は非開示。推定シェアは各社間の相対競争力の目安。</span></h2>
+      <div class="muted" style="margin-bottom:8px">開示中 ${visibleMarkets} 市場 / ${cards.length} 社${hiddenMarkets ? `（未分析 ${hiddenMarkets} 市場は非開示）` : ""}</div>
+      ${grid}
+      ${fog}
+    </section>
+    <section class="panel">
+      <h2>各社の動き（動向ログ）<span class="legend">ターン差分から自動生成：参入・規模拡大・シェア変動</span></h2>
+      <div class="loglines">${news}</div>
+    </section>`;
+}
+
 /** 分析ページ（市場グリッド＋動的市場の見通し）。 */
 function analysisPanel(): string {
   const skill = analysisSkill(employees(state));
@@ -852,6 +915,7 @@ function tabContent(): string {
     case "overview": return overviewTab();
     case "talent": return recruitPanel() + rosterPanel();
     case "market": return analysisPanel();
+    case "rivals": return rivalsTab();
     case "products": return productsPanel() + logPanel();
     case "research": return blueprintPanel();
     case "finance": return financeTab();

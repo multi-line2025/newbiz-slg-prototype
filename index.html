@@ -146,6 +146,20 @@
       .recruit-ctl select { background: var(--panel2); color: inherit; border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
       .pager { display: flex; align-items: center; gap: 8px; margin-left: auto; }
       .pager button[disabled] { opacity: 0.4; cursor: default; }
+      /* 他企業タブ（v0.12） */
+      .rgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+      .rcard { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+      .rc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+      .rc-share { margin-bottom: 8px; }
+      .rc-pct { font-size: 22px; font-weight: 700; color: #6cc6c6; }
+      .rc-tiers { display: flex; flex-direction: column; gap: 3px; font-size: 12px; margin-bottom: 8px; }
+      .rc-mv { display: flex; flex-wrap: wrap; gap: 4px; min-height: 20px; }
+      .mv { font-size: 10px; padding: 1px 6px; border-radius: 10px; border: 1px solid var(--border); }
+      .mv.new { color: #6cc6c6; border-color: #6cc6c6; }
+      .mv.up { color: #4bbf73; border-color: #4bbf73; }
+      .mv.down { color: #d98a8a; border-color: #d98a8a; }
+      .mv.aggr { color: #d9a441; border-color: #d9a441; }
+      .rfog { margin-top: 12px; padding: 10px; background: var(--panel2); border: 1px dashed var(--border); border-radius: 8px; font-size: 12px; color: var(--muted); }
       /* 表内ミニボタン */
       td.acts { white-space: nowrap; }
       button.mini {

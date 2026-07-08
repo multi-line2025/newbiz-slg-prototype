@@ -104,6 +104,9 @@ export interface PendingHire {
   salaryOffered: number; // 提示月給（受諾時の契約給与）
 }
 
+/** 他企業（ライバル）の1ターンスナップショット（id→推定シェア＋規模・v0.12）。動き差分の基準。 */
+export type RivalSnapshot = Record<Id, { estShare: number; scaleTier: number }>;
+
 /** プロトタイプの全体状態。 */
 export interface ProtoGameState {
   turn: number; // 現在ターン（1ターン=1ヶ月）
@@ -118,6 +121,8 @@ export interface ProtoGameState {
   poolIds: Id[]; // 採用候補プール（未採用の全人材）
   scoutSubscriptions: PlayableCountry[]; // 国別スカウトサブスク加入中の国（可視性ゲート・v0.10）
   pendingHires: PendingHire[]; // 進行中の採用オファー（3ターン後に受諾判定・v0.11）
+  rivalPrev: RivalSnapshot; // 前ターンのライバルスナップショット（動き差分の基準・v0.12）
+  rivalNews: string[]; // 他企業の動きログ（参入・規模拡大・シェア変動・v0.12）
   markets: Record<string, MarketState>; // 多市場グリッド（セクター×国・§1）
   products: Product[]; // 自社製品（青写真×市場）
   assignments: Record<Id, Id>; // 社員ID → 配属先製品ID（QUAL_p・force算出に使用）

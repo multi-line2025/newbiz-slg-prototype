@@ -561,3 +561,6 @@ export const SCOUT_SUB_COST: Record<PlayableCountry, number> = {
   US: 2000, JP: 1200, DE: 1000, GB: 900, SG: 500,
 };
 export const SCOUT_SUB_AP = 1; // 加入/解約に要するAP（現金の前払いは無し＝初月から月額のみ）
+
+/** 他企業（ライバル）動向ログの保持上限（v0.12・他企業タブ表示用）。 */
+export const RIVAL_NEWS_CAP = 40;

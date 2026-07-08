@@ -14,6 +14,7 @@ import type { ProtoGameState, Product } from "./state";
 import { computeMonthlyBurn } from "./finance";
 import { computeQualP } from "./product";
 import { generateMarkets, marketId } from "./markets";
+import { snapshotRivals } from "./rivals";
 import { DEFAULT_MISSION_TAGS, WORLD_POOL_SIZE, ORDINARY_PA_MIN, UNSKILLED_PA_MAX, type Archetype } from "./model/constants";
 
 export interface InitOptions {
@@ -147,6 +148,8 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
     poolIds,
     scoutSubscriptions: [country], // 起業国は開始時から加入済み（初期に候補が見える）
     pendingHires: [], // 進行中の採用オファー（創業メンバーは即時雇用済み・v0.11）
+    rivalPrev: snapshotRivals(markets), // 初期ライバルを基準化（turn1で全社を“参入”扱いしない・v0.12）
+    rivalNews: [], // 他企業の動きログ
     markets,
     products: [starter],
     assignments,

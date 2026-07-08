@@ -24,9 +24,10 @@ import { stepDynamics, staleEff } from "./dynamics";
 import { rpPerTurn, eraForTurn, sectorTier, getBlueprint } from "./research";
 import { checkAchievements } from "./achievements";
 import { resolvePendingHires } from "./actions";
+import { snapshotRivals, computeRivalNews, selfMarketIds } from "./rivals";
 import { makePRNG } from "./prng";
 import { clamp } from "./util";
-import { POACH_BASE, POACH_VULN_MIN, ANALYSIS_STEPS, QUAL_TIER_CAP as TIER_CAP } from "./model/constants";
+import { POACH_BASE, POACH_VULN_MIN, ANALYSIS_STEPS, QUAL_TIER_CAP as TIER_CAP, RIVAL_NEWS_CAP } from "./model/constants";
 
 /** advanceTurn の戻り値。log は今ターンの出来事。 */
 export interface TurnResult {
@@ -44,6 +45,8 @@ export function advanceTurn(state: ProtoGameState): TurnResult {
   const rng = makePRNG(state.rngSeed);
   const events: string[] = [];
   let s = state;
+  // ターン開始時のライバル状態を控える（このターンの動き＝終端との差分・v0.12）
+  const prevRivalSnap = snapshotRivals(state.markets);
 
   // ---- 加齢・寿命再評価（全人材）＋ 成長（在籍社員のみ）----
   const nextPeople: Record<Id, Person> = { ...s.people };
@@ -133,6 +136,18 @@ export function advanceTurn(state: ProtoGameState): TurnResult {
   });
   const nextTHxP = Math.max(0, s.company.THxP_customer + thxpDelta);
   s = { ...s, products, markets, company: { ...s.company, THxP_customer: nextTHxP } };
+
+  // ---- 他企業（ライバル）の動向：前ターン差分から動きニュースを生成（可視市場のみ・v0.12）----
+  {
+    const selfIds = selfMarketIds(s);
+    const news = computeRivalNews(prevRivalSnap, s.markets, selfIds);
+    for (const n of news) events.push(n);
+    s = {
+      ...s,
+      rivalPrev: prevRivalSnap, // 前ターン基準を保存（他企業タブの“動き”表示に使用）
+      rivalNews: [...s.rivalNews, ...news].slice(-RIVAL_NEWS_CAP),
+    };
+  }
 
   // ---- D. 収支：市場ごと売上を合算 − バーン → CASH・派生値（§5-D）----
   const cashBefore = s.company.CASH;
