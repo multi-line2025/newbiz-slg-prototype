@@ -24,6 +24,7 @@ import { stepDynamics, staleEff } from "./dynamics";
 import { rpPerTurn, eraForTurn, sectorTier, getBlueprint } from "./research";
 import { checkAchievements } from "./achievements";
 import { resolvePendingHires } from "./actions";
+import { stepFamily } from "./family";
 import { snapshotRivals, computeRivalNews, selfMarketIds } from "./rivals";
 import { makePRNG } from "./prng";
 import { clamp } from "./util";
@@ -162,6 +163,13 @@ export function advanceTurn(state: ProtoGameState): TurnResult {
 
   // ---- 採用オファーの進行・受諾判定（v0.11・3ターンのリクルート）----
   s = resolvePendingHires(s, rng, events);
+
+  // ---- 個人キャリア＆家族（v0.13）：PC評判進行・子の成長・妊娠/出産（独立サブシステム）----
+  {
+    const fam = stepFamily(s, rng);
+    s = fam.state;
+    events.push(...fam.events);
+  }
 
   // ---- ターン終了：連続黒字・AP回復・turn前進・seed前進 ----
   const profitStreak = netProfit >= 0 ? s.profitStreak + 1 : 0;

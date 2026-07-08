@@ -107,6 +107,28 @@ export interface PendingHire {
 /** 他企業（ライバル）の1ターンスナップショット（id→推定シェア＋規模・v0.12）。動き差分の基準。 */
 export type RivalSnapshot = Record<Id, { estShare: number; scaleTier: number }>;
 
+/**
+ * プロトタイプのPC（操作対象・v0.13）。本人 Person は people[personId] に格納して加齢等を共通処理し、
+ * ここには一族関係・個人資産などPC固有の状態を持つ（正典 PlayerCharacter の簡易版）。
+ */
+export interface ProtoPC {
+  personId: Id;            // people 内のPC本人
+  wealth: number;          // 個人資産（会社CASHとは分離・§9.2）
+  rpPersonal: number;      // 個人研究ポイント RP_P
+  spouseId: Id | null;     // 配偶者（people 内の Person.id）
+  childrenIds: Id[];       // 実子（後継者候補）
+  lifestyleFactor: number; // ライフスタイル係数 0.7〜3.0（§12.5）
+  generation: number;      // 何代目か（§10）
+  bloodlineId: Id;         // PC一族の血統ID（血族婚判定・§9.3.3）
+}
+
+/** 妊娠状態（v0.13・§9.3）。dueTurn 到達で 0歳児を生成。 */
+export interface Pregnancy {
+  motherId: Id;  // 懐胎者（女性：PC本人 or 女性配偶者）
+  fatherId: Id;  // もう一方の親
+  dueTurn: number; // 出産予定ターン（＝妊娠ターン + 妊娠期間）
+}
+
 /** プロトタイプの全体状態。 */
 export interface ProtoGameState {
   turn: number; // 現在ターン（1ターン=1ヶ月）
@@ -123,6 +145,10 @@ export interface ProtoGameState {
   pendingHires: PendingHire[]; // 進行中の採用オファー（3ターン後に受諾判定・v0.11）
   rivalPrev: RivalSnapshot; // 前ターンのライバルスナップショット（動き差分の基準・v0.12）
   rivalNews: string[]; // 他企業の動きログ（参入・規模拡大・シェア変動・v0.12）
+  pc: ProtoPC; // 操作対象PC・一族（個人キャリア＆家族システム・v0.13）
+  pregnancy: Pregnancy | null; // 妊娠状態（§9.3・v0.13）
+  childEducation: Record<Id, number>; // 子ID→教育投資レベル（成長加速・§9.4・v0.13）
+  familySeed: number; // 家族系アクション（求愛/求婚）の乱数種（turn乱数と分離・決定論）
   markets: Record<string, MarketState>; // 多市場グリッド（セクター×国・§1）
   products: Product[]; // 自社製品（青写真×市場）
   assignments: Record<Id, Id>; // 社員ID → 配属先製品ID（QUAL_p・force算出に使用）

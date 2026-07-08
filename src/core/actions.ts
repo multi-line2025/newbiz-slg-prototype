@@ -16,6 +16,8 @@ import {
   SCOUT_SUB_AP, SCOUT_SUB_COST,
   RECRUIT_TURNS, MAX_PENDING_OFFERS, OFFER_PA_MARGIN_DIV, OFFER_BASE, OFFER_SALARY_K,
   OFFER_AMBITION_K, OFFER_ACCEPT_MIN, OFFER_ACCEPT_MAX,
+  COURT_BASE, PROPOSE_BASE, MARRIAGE_LUMP, ROMANCE_MIN_AGE,
+  EDU_COST, EDU_GROWTH_K, CHILD_GROW_ENV,
 } from "./model/constants";
 import { getBlueprint, blueprintStatus } from "./research";
 import { marketSizeOf } from "./markets";
@@ -23,6 +25,9 @@ import { analysisSkill } from "./analysis";
 import { refreshDerived } from "./finance";
 import { reachablePaMax } from "./talentPool";
 import { clamp } from "./util";
+import { makePRNG } from "./prng";
+import { applyGrowth } from "./growth";
+import { repMatchProbability, isBloodRelated } from "./family";
 
 /** アクションの結果。ok=false なら state は元のまま。 */
 export interface ActionResult {
@@ -210,6 +215,98 @@ export function resolvePendingHires(
     }
   }
   return { ...s, pendingHires: next };
+}
+
+/* ============================================================
+ * v0.13：個人キャリア＆家族（恋愛・結婚・教育）の意思決定アクション
+ * ============================================================ */
+
+/**
+ * 求愛（§9・恋愛）。★評判の釣り合いゲート×確率で交際(lover)に発展。PA・数値は露出しない。
+ *  失敗（振られる）でも ok=true（AP消費・結果はメッセージ）。相手プールはワールドの独身成人。
+ */
+export function courtCandidate(state: ProtoGameState, personId: Id): ActionResult {
+  const pc = state.people[state.pc.personId];
+  const t = state.people[personId];
+  if (!t) return fail(state, "対象が見つかりません。");
+  if (t.id === pc.id) return fail(state, "自分自身は対象にできません。");
+  if (t.sex === pc.sex) return fail(state, `${t.name}とは結ばれません。`);
+  if (t.age < ROMANCE_MIN_AGE) return fail(state, `${t.name}はまだ成人していません。`);
+  if (isBloodRelated(state.pc.bloodlineId, t)) return fail(state, `${t.name}は血族のため結ばれません（§9.3.3）。`);
+  if (t.relationToPC === "lover") return fail(state, `${t.name}とは既に交際中です。`);
+  if (t.relationToPC === "spouse") return fail(state, `${t.name}は既に配偶者です。`);
+  if (t.relationToPC !== "none") return fail(state, `${t.name}は恋愛対象外です。`);
+  if (state.ap < 1) return fail(state, "APが足りません（必要1AP）。");
+  const prob = COURT_BASE * repMatchProbability(pc.reputation, t.reputation);
+  if (prob <= 0) return fail(state, `${t.name}とは評判の格が違いすぎて、相手にされません。`);
+  const rng = makePRNG(state.familySeed);
+  const success = rng.chance(prob);
+  const familySeed = rng.nextSeed();
+  if (success) {
+    return {
+      state: {
+        ...state, ap: state.ap - 1, familySeed,
+        people: withPerson(state, { ...t, relationToPC: "lover" }),
+        poolIds: state.poolIds.filter((id) => id !== personId), // 交際相手は採用プールから外す
+      },
+      ok: true,
+      message: `💘 ${t.name} との交際が始まりました。`,
+    };
+  }
+  return { state: { ...state, ap: state.ap - 1, familySeed }, ok: true, message: `${t.name} に振られました。またの機会に。` };
+}
+
+/**
+ * 求婚（§9・結婚）。交際中(lover)の相手に、評判釣り合い×確率で結婚(spouse)。3AP＋結婚一時金。
+ */
+export function proposeMarriage(state: ProtoGameState, personId: Id): ActionResult {
+  const pc = state.people[state.pc.personId];
+  const t = state.people[personId];
+  if (!t) return fail(state, "対象が見つかりません。");
+  if (state.pc.spouseId) return fail(state, "既に配偶者がいます。");
+  if (t.relationToPC !== "lover") return fail(state, `${t.name}とはまず交際する必要があります。`);
+  if (state.ap < 3) return fail(state, "APが足りません（必要3AP）。");
+  if (state.pc.wealth < MARRIAGE_LUMP) return fail(state, `結婚一時金 $${MARRIAGE_LUMP.toLocaleString()} が不足しています。`);
+  const prob = PROPOSE_BASE * repMatchProbability(pc.reputation, t.reputation);
+  if (prob <= 0) return fail(state, `${t.name}とは評判の格が違いすぎます。`);
+  const rng = makePRNG(state.familySeed ^ 0x5bd1e995);
+  const success = rng.chance(prob);
+  const familySeed = rng.nextSeed();
+  if (success) {
+    return {
+      state: {
+        ...state, ap: state.ap - 3, familySeed,
+        pc: { ...state.pc, spouseId: personId, wealth: state.pc.wealth - MARRIAGE_LUMP },
+        people: withPerson(state, { ...t, relationToPC: "spouse" }),
+      },
+      ok: true,
+      message: `💍 ${t.name} と結婚しました！`,
+    };
+  }
+  return { state: { ...state, ap: state.ap - 1, familySeed }, ok: true, message: `${t.name} に求婚を断られました。` };
+}
+
+/**
+ * 子の教育（§9.4）。個人資産と1APを投じ、教育レベルを上げて子の成長を加速（即時に一段成長）。
+ */
+export function educateChild(state: ProtoGameState, childId: Id): ActionResult {
+  const child = state.people[childId];
+  if (!child || child.relationToPC !== "child") return fail(state, "対象の子が見つかりません。");
+  if (state.ap < 1) return fail(state, "APが足りません（必要1AP）。");
+  if (state.pc.wealth < EDU_COST) return fail(state, `教育費 $${EDU_COST.toLocaleString()} が不足しています。`);
+  const edu = (state.childEducation[childId] ?? 0) + 1;
+  const env = { factor: clamp(CHILD_GROW_ENV + edu * EDU_GROWTH_K, 0.5, 3.0) };
+  const grown = applyGrowth(child, env); // 即時に一段成長（教育の手応え）
+  return {
+    state: {
+      ...state, ap: state.ap - 1,
+      pc: { ...state.pc, wealth: state.pc.wealth - EDU_COST },
+      people: withPerson(state, grown),
+      childEducation: { ...state.childEducation, [childId]: edu },
+    },
+    ok: true,
+    message: `📚 ${child.name} に教育を施しました（教育Lv${edu}）。`,
+  };
 }
 
 /**

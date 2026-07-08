@@ -26,11 +26,15 @@ import {
   subscribeScoutCountry,
   unsubscribeScoutCountry,
   makeOffer,
+  courtCandidate,
+  proposeMarriage,
+  educateChild,
   type ActionResult,
   type MarketChannel,
 } from "../core/actions";
 import { scoutedView, type ScoutView } from "../core/scout";
 import { aggregateRivals, type RivalView } from "../core/rivals";
+import { pcPerson, eligiblePartners, repMatchProbability, fertility } from "../core/family";
 import { BLUEPRINTS, blueprintStatus, researchCoeff, rpPerTurn, blueprintForSector, sectorTier, breadthDepth, type LockReason } from "../core/research";
 import {
   productCompetitiveness, marketRivalComp, earnedShareCap, reachShareCap, productRevenue,
@@ -77,7 +81,7 @@ let toast = ""; // 直近アクションの結果メッセージ
 let selectedPersonId: string | null = null; // 詳細ビュー対象（nullで閉じる）
 
 /** FM風タブ（グローバルHUDは常時表示、内容だけ切り替え）。 */
-type TabId = "overview" | "talent" | "market" | "rivals" | "products" | "research" | "finance" | "achievements";
+type TabId = "overview" | "talent" | "market" | "rivals" | "products" | "research" | "finance" | "career" | "family" | "achievements";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "概要" },
   { id: "talent", label: "人材" },
@@ -86,6 +90,8 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "products", label: "製品" },
   { id: "research", label: "研究・青写真" },
   { id: "finance", label: "財務・組織" },
+  { id: "career", label: "個人" },
+  { id: "family", label: "家族" },
   { id: "achievements", label: "実績" },
 ];
 // アクティブタブはUI層のモジュール状態（ターン送り/セーブ/ロードでも保持。新規開始で概要へ）。
@@ -511,6 +517,124 @@ function strategyLabel(m: MarketState, fit: number | null, dormant: boolean): st
 }
 
 /* ============================================================
+ * 個人キャリア / 家族タブ（v0.13）
+ * ============================================================ */
+
+/** ① 個人キャリアタブ：PCプロフィール＋経歴要約。 */
+function careerTab(): string {
+  const pc = pcPerson(state);
+  const info = state.pc;
+  const gotAch = state.achievements.map((id) => getAchievement(id)?.label).filter(Boolean);
+  const milestones = [
+    `第${info.generation}世代の起業家として創業`,
+    `現在：ターン${state.turn}（${(pc.age).toFixed(1)}歳）・会社CASH $${fmt(state.company.CASH)}`,
+    `解放青写真 ${state.company.unlockedBlueprints.length} / 製品 ${state.products.length}`,
+    info.spouseId ? `既婚（配偶者：${state.people[info.spouseId]?.name ?? "?"}）` : "独身",
+    info.childrenIds.length ? `子 ${info.childrenIds.length} 人（後継者候補）` : "後継者候補なし",
+  ];
+  return `
+    <section class="panel">
+      <h2>個人プロフィール<span class="legend">経営とは別軸の“個人”の格。評判が上がるほど良い伴侶と結ばれる。</span></h2>
+      <div class="kpis">
+        <div class="kpi"><div class="k">氏名</div><div class="v" style="font-size:15px">${pc.name}</div></div>
+        <div class="kpi"><div class="k">性別/年齢</div><div class="v" style="font-size:15px">${pc.sex === "female" ? "女" : "男"} / ${pc.age.toFixed(1)}歳</div></div>
+        <div class="kpi"><div class="k">寿命(推定)</div><div class="v">${pc.lifeExpectancy.toFixed(0)}</div></div>
+        <div class="kpi"><div class="k">個人評判</div><div class="v">${pc.reputation.toFixed(0)}</div></div>
+        <div class="kpi"><div class="k">個人資産</div><div class="v">$${fmt(info.wealth)}</div></div>
+        <div class="kpi"><div class="k">個人RP</div><div class="v">${info.rpPersonal}</div></div>
+        <div class="kpi"><div class="k">生活水準</div><div class="v">${info.lifestyleFactor.toFixed(1)}</div></div>
+        <div class="kpi"><div class="k">世代</div><div class="v">${info.generation}代目</div></div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>これまでの経歴</h2>
+      <div class="loglines">${milestones.map((m) => `<div class="line">・${m}</div>`).join("")}
+        ${gotAch.length ? `<div class="line">🏆 実績：${gotAch.join(" / ")}</div>` : ""}</div>
+    </section>`;
+}
+
+/** 評判釣り合いの実現可能性ラベル。 */
+function matchLabel(pcRep: number, partnerRep: number): string {
+  const p = repMatchProbability(pcRep, partnerRep);
+  if (p <= 0) return `<span class="mv down">格が違いすぎ（不可）</span>`;
+  if (p >= 0.7) return `<span class="mv up">釣り合う（${Math.round(p * 100)}%）</span>`;
+  if (p >= 0.35) return `<span class="mv aggr">やや格差（${Math.round(p * 100)}%）</span>`;
+  return `<span class="mv down">格差大（${Math.round(p * 100)}%）</span>`;
+}
+
+/** ② 家族タブ：配偶者・子・妊娠＋恋愛/結婚/教育コマンド。 */
+function familyTab(): string {
+  const pc = pcPerson(state);
+  const info = state.pc;
+
+  // 配偶者・妊娠
+  let spouseHtml = `<div class="muted">配偶者はいません。下の相手一覧から求愛しましょう。</div>`;
+  if (info.spouseId) {
+    const sp = state.people[info.spouseId];
+    const preg = state.pregnancy
+      ? `<div class="mv new">🤰 妊娠中：あと ${Math.max(0, state.pregnancy.dueTurn - state.turn)} ターンで出産</div>`
+      : `<div class="muted">妊孕性がある間は毎ターン一定確率で妊娠します（高齢ほど確率低下）。</div>`;
+    spouseHtml = sp ? `<div class="rcard">
+        <div class="rc-head"><b>💍 ${sp.name}</b> <span class="muted">${sp.sex === "female" ? "女" : "男"} / ${sp.age.toFixed(1)}歳</span></div>
+        <div class="muted">妊孕性の目安：${(fertility(sp.age, sp.sex) * 100).toFixed(0)}%</div>
+        ${preg}
+      </div>` : spouseHtml;
+  }
+
+  // 子の一覧
+  const childrenHtml = info.childrenIds.length
+    ? info.childrenIds.map((cid) => {
+        const c = state.people[cid];
+        if (!c) return "";
+        const edu = state.childEducation[cid] ?? 0;
+        return `<div class="rcard">
+          <div class="rc-head"><b>👶 ${c.name}</b> <span class="muted">${c.sex === "female" ? "女" : "男"} / ${c.age.toFixed(1)}歳</span></div>
+          <div class="rc-tiers"><span>CA ${c.CA} / PA ${c.PA}（後継者候補）</span><span>教育Lv ${edu}</span></div>
+          <div class="rc-mv"><button class="mini offer" data-educate="${cid}">教育する<br><span class="cost">1AP / $${fmt(3000)}</span></button></div>
+        </div>`;
+      }).join("")
+    : `<div class="muted">子はまだいません。</div>`;
+
+  // 交際中（lover）＝求婚導線
+  const lovers = Object.values(state.people).filter((p) => p.relationToPC === "lover");
+  const loversHtml = lovers.length && !info.spouseId
+    ? lovers.map((p) => `<div class="rcard">
+        <div class="rc-head"><b>💘 ${p.name}</b> <span class="muted">${p.sex === "female" ? "女" : "男"} / ${p.age.toFixed(1)}歳・交際中</span></div>
+        <div class="rc-tiers"><span>相手の評判 ${p.reputation}</span>${matchLabel(pc.reputation, p.reputation)}</div>
+        <div class="rc-mv"><button class="mini offer" data-propose="${p.id}">求婚する<br><span class="cost">3AP / $${fmt(10000)}</span></button></div>
+      </div>`).join("")
+    : "";
+
+  // 独身の相手プール（評判が近い順に上位20名）
+  const eligible = info.spouseId ? [] : eligiblePartners(state)
+    .slice()
+    .sort((a, b) => Math.abs(a.reputation - pc.reputation) - Math.abs(b.reputation - pc.reputation))
+    .slice(0, 20);
+  const partnersHtml = eligible.length
+    ? `<div class="rgrid">${eligible.map((p) => `<div class="rcard">
+        <div class="rc-head"><b>${p.name}</b> <span class="muted">${p.sex === "female" ? "女" : "男"} / ${p.age.toFixed(1)}歳</span></div>
+        <div class="rc-tiers"><span>相手の評判 ${p.reputation}</span>${matchLabel(pc.reputation, p.reputation)}</div>
+        <div class="rc-mv"><button class="mini offer" data-court="${p.id}">求愛する<br><span class="cost">1AP</span></button></div>
+      </div>`).join("")}</div>`
+    : (info.spouseId ? "" : `<div class="muted">条件に合う独身の相手がいません。</div>`);
+
+  return `
+    <section class="panel">
+      <h2>家族<span class="legend">恋愛・結婚は双方の評判の釣り合いが必要。結婚後、女性側の妊孕性がある間に子を授かる（§9.3）。</span></h2>
+      ${spouseHtml}
+    </section>
+    <section class="panel">
+      <h2>子供（後継者候補）<span class="legend">教育で成長を加速（§9.4）。将来の世代交代の土台。</span></h2>
+      <div class="rgrid">${childrenHtml}</div>
+    </section>
+    ${loversHtml ? `<section class="panel"><h2>交際中</h2><div class="rgrid">${loversHtml}</div></section>` : ""}
+    ${info.spouseId ? "" : `<section class="panel">
+      <h2>相手を探す（ワールドの独身成人・評判が近い順）<span class="legend">個人評判が上がると高評判の相手が“釣り合う”。血族は対象外（§9.3.3）。</span></h2>
+      ${partnersHtml}
+    </section>`}`;
+}
+
+/* ============================================================
  * 他企業（ライバル）タブ（v0.12）：各社カード＋動きログ。フォグ整合。
  * ============================================================ */
 const SCALE_LABEL = ["零細", "小規模", "中堅", "大手", "最大手"];
@@ -919,6 +1043,8 @@ function tabContent(): string {
     case "products": return productsPanel() + logPanel();
     case "research": return blueprintPanel();
     case "finance": return financeTab();
+    case "career": return careerTab();
+    case "family": return familyTab();
     case "achievements": return achievementsPanel();
     default: return overviewTab();
   }
@@ -987,6 +1113,16 @@ function render(): void {
   // 採用オファー（v0.11・3ターン後に受諾判定）
   app.querySelectorAll<HTMLButtonElement>("[data-offer]").forEach((b) =>
     b.addEventListener("click", () => apply(makeOffer(state, b.dataset.offer!)))
+  );
+  // 家族（v0.13）：求愛・求婚・教育
+  app.querySelectorAll<HTMLButtonElement>("[data-court]").forEach((b) =>
+    b.addEventListener("click", () => apply(courtCandidate(state, b.dataset.court!)))
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-propose]").forEach((b) =>
+    b.addEventListener("click", () => apply(proposeMarriage(state, b.dataset.propose!)))
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-educate]").forEach((b) =>
+    b.addEventListener("click", () => apply(educateChild(state, b.dataset.educate!)))
   );
   // 採用市場：職種フィルタ・並べ替え・ページング（v0.11）
   app.querySelectorAll<HTMLSelectElement>("[data-rjob]").forEach((sel) =>

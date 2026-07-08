@@ -15,6 +15,7 @@ import { computeMonthlyBurn } from "./finance";
 import { computeQualP } from "./product";
 import { generateMarkets, marketId } from "./markets";
 import { snapshotRivals } from "./rivals";
+import { buildPerson } from "./person";
 import { DEFAULT_MISSION_TAGS, WORLD_POOL_SIZE, ORDINARY_PA_MIN, UNSKILLED_PA_MAX, type Archetype } from "./model/constants";
 
 export interface InitOptions {
@@ -121,6 +122,19 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
   const assignments: Record<string, string> = {};
   for (const id of employeeIds) assignments[id] = starter.id;
 
+  // --- PC（操作対象・一族の始祖）を生成（v0.13）。people に格納して加齢等を共通処理する ---
+  // ※ 専用の乱数を使う：初期rng(=rngSeedの元)を消費すると経済のRNGがずれる（非回帰を壊す）ため分離。
+  const pcRng = makePRNG(seed ^ 0x00c0ffee);
+  const bloodlineId = `bl-${seed.toString(36)}`;
+  const pcSex = pcRng.chance(0.5) ? "male" : "female";
+  const pcBase = buildPerson(
+    { PA: 140, age: 30, nationality: country, era, sex: pcSex, jobCategory: "manager", hireCountry: country },
+    pcRng,
+    "pc"
+  );
+  const pcPersonObj: Person = { ...pcBase, bloodlineId, reputation: 10, relationToPC: "none" };
+  people[pcPersonObj.id] = pcPersonObj; // PCは people に入るが employeeIds/poolIds には入れない（経営に非干渉）
+
   const company = {
     name: "NewCo",
     foundedCountry: country,
@@ -150,6 +164,19 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
     pendingHires: [], // 進行中の採用オファー（創業メンバーは即時雇用済み・v0.11）
     rivalPrev: snapshotRivals(markets), // 初期ライバルを基準化（turn1で全社を“参入”扱いしない・v0.12）
     rivalNews: [], // 他企業の動きログ
+    pc: { // 操作対象PC・一族（v0.13）
+      personId: pcPersonObj.id,
+      wealth: 30000, // 個人資産（結婚一時金・教育費の原資）
+      rpPersonal: 0,
+      spouseId: null,
+      childrenIds: [],
+      lifestyleFactor: 1.0,
+      generation: 1,
+      bloodlineId,
+    },
+    pregnancy: null,
+    childEducation: {},
+    familySeed: seed ^ 0x1d872b41, // 家族アクション（求愛/求婚）専用の乱数種
     markets,
     products: [starter],
     assignments,
