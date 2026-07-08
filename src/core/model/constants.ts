@@ -158,8 +158,8 @@ export const REPUTATION_GATES: ReputationGate[] = [
 /** 仕様 §12.4 売上単価（TRAC1ptあたりの月次売上）。 */
 export const SALES_UNIT_PRICE = 200;
 
-/** 会社の固定費（月額・仕様§12ブートストラップ例の$1,000に整合）。 */
-export const FIXED_COST = 1000;
+/** 会社の固定費（月額）。v0.7.2：序盤バーンを抑えるため1000→600。 */
+export const FIXED_COST = 600;
 
 /** 仕様 §4.4 寿命式 lifeExpectancy = BASE_LIFE + (health-10)*LIFE_K。 */
 export const BASE_LIFE = 72;
@@ -274,8 +274,9 @@ export const QUAL_DECAY = 0.3;
  *   ※旧 TRAC_DECAY / MARKETING_* / TRAC_GAIN_K は§8差分表どおり廃止。
  * ============================================================ */
 
-/** §2.2 有限市場の基準ユニット数（US・インターネット期＝1.0基準）。 */
-export const M_BASE = 300;
+/** §2.2 有限市場の基準ユニット数（US・インターネット期＝1.0基準）。
+ *  v0.7.2：小市場でも給与を賄える売上規模にするため 300→480（全市場スケール）。★要PT。 */
+export const M_BASE = 560;
 /** §2.2 時代ごとの市場倍率（パイの大きさ）。 */
 export const ERA_MARKET_MULT: Record<Era, number> = {
   dawn: 0.6, internet: 1.0, smartphone: 1.6, ai: 2.2,
@@ -294,30 +295,30 @@ export const KCOMP_REP = 0.2; // 評判100で競争力+20%
 /** §3.4 ライバル競争力（ΣC_r）関連。 */
 export const SCALE_STRENGTH = [0.2, 0.4, 0.7, 1.1, 1.6]; // 規模ティア別の基礎力
 export const SECTOR_MATCH = { same: 1.0, adjacent: 0.5, unrelated: 0.1 };
-export const C_OPEN = 0.8; // 開放市場の残余（誰も100%は取れない）
+export const C_OPEN = 0.5; // v0.7.2：開放残余（0.6→0.5）
 export const REACH_AMP = 1.6; // 広告が稼ぎ天井の何倍まで一時到達できるか
-/** §3.4 国別の背景競争圧（far層の統計集約）。 */
+/** §3.4 国別の背景競争圧（far層の統計集約）。v0.7.2：普通の人材でも空き市場で戦えるよう半減。 */
 export const FAR_PRESSURE: Record<PlayableCountry, number> = {
-  US: 0.9, JP: 0.6, DE: 0.5, GB: 0.5, SG: 0.3,
+  US: 0.45, JP: 0.3, DE: 0.25, GB: 0.25, SG: 0.15,
 };
 
 /** §4.6 4チャネルの係数。 */
 export const KAD = 3.0; // 広告
-export const KPR = 1.5; // PR/口コミ
+export const KPR = 3.0; // PR/口コミ（v0.7.2：序盤の種火をさらに強化 2.2→3.0）
 export const KREP_ORG = 0.3; // 評判で口コミ伝播+30%
-export const KSALES = 1.2; // セールス直販
+export const KSALES = 4.5; // セールス直販（v0.7.2：普通の人材でもturn1から効く主力レバーに 1.2→4.5）
 export const KCOMM_TH = 4.0; // コミュニティ→顧客THxP
 export const KCOMM_S = 0.2; // コミュニティ→直接シェア（小）
 
-/** §5.3 品質-広告整合・逆噴射。 */
-export const QUAL_AD_BACKFIRE = 40; // これ未満の広告は逆噴射
+/** §5.3 品質-広告整合・逆噴射（v0.7.2：崖を撤去。低QUALは「効かない」だけで即マイナスにしない）。 */
+export const QUAL_AD_BACKFIRE = 28; // これ未満のみ逆噴射（40→28に緩和）
 export const QUAL_AD_FIT_FULL = 85; // 適合度1.0到達点（以降1.2まで微増）
-export const BACKFIRE_K = 2.0; // 逆噴射のsticky毀損係数
-export const BACKFIRE_TH = 6.0; // 逆噴射の顧客THxP毀損係数
+export const BACKFIRE_K = 0.8; // 逆噴射のsticky毀損係数（2.0→0.8に縮小）
+export const BACKFIRE_TH = 2.5; // 逆噴射の顧客THxP毀損係数（6.0→2.5に縮小）
 
 /** §6.4 減衰・軍拡競争。 */
 export const DECAY_PAID = 0.35; // 広告シェアは月35%蒸発（賃借）
-export const DECAY_STICKY = 0.03; // stickyは月3%のみ
+export const DECAY_STICKY = 0.02; // stickyは月2%（v0.7.2：序盤の積み上げが崩れにくく 0.03→0.02）
 export const ERODE_STICKY = 0.15; // 天井超過分の15%/ターンをライバルが奪還
 export const RIVAL_GROWTH = 0.02; // nearライバルの規模昇格速度
 
@@ -363,7 +364,7 @@ export const BIAS_MAX = 1.4;
 export const APPEAL_NOISE = 0.45; // セクター配分シェアの振れ（密度のばらつき源）
 export const DENS_MIN = 0.3;
 export const DENS_MAX = 2.5;
-export const NEAR_BASE = 12; // 平均密度の市場のnearライバル数
+export const NEAR_BASE = 5; // v0.7.2：空き市場のライバル数をさらに抑える（6→5）
 export const NEAR_MIN = 3;
 export const NEAR_MAX = 40;
 /** 数値定義§4.9 国別ライバル総数（セクターへ配分）。 */
@@ -401,7 +402,7 @@ export interface QualFormulaTerm {
  * ============================================================ */
 
 /** §2.4 成熟と収益実現。 */
-export const REV_FLOOR = 0.15; // 未成熟市場の収益実現率（潜在の15%）
+export const REV_FLOOR = 0.35; // 未成熟市場の収益実現率（v0.7.2：0.15→0.35。空き市場でも普通の人材が食える）
 export const REV_CURVE = 0.9; // realize曲線の凸度（<1でわずかに凸）
 export const DENS_MAT_MIN = 0.35; // 成熟度0の期待密度
 export const DENS_MAT_MAX = 1.9; // 成熟度1の期待密度
@@ -413,16 +414,16 @@ export const MAT_INIT_MAX = 0.95;
 /** §3.4 ヒット駆動の市場成長。 */
 export const MAT_GROWTH_K = 0.08; // 成熟度成長係数
 export const MAT_REGRESS = 0.01; // 放置市場の月次冷却
-export const QUAL_HIT_MIN = 50; // これ未満のQUAL_pは市場を育てない
+export const QUAL_HIT_MIN = 42; // これ未満のQUAL_pは市場を育てない（v0.7.2：50→42。創業製品でも育成に届く）
 export const QUAL_HIT_FULL = 85; // qualGate=1.0 到達点
 export const RIVAL_HIT_W = 0.6; // ライバルの成功が市場成熟に効く重み
 export const TAM_EXPAND = 0; // 潜在パイ天井の拡張（初期0＝realizeのみ）
 
 /** §4.3 参入ダイナミクス。 */
-export const ENTRY_RATE = 0.15; // 毎ターン gap の埋まる基礎速度
+export const ENTRY_RATE = 0.08; // v0.7.2：序盤の参入を緩やかに（先行者の猶予窓を延長 0.15→0.08）
 export const ATTR_GROWTH = 0.8; // 成長中の市場への参入加速
 export const ATTR_PROFIT = 0.5; // 実効パイの大きい市場への引力
-export const ATTR_SUCCESS = 0.6; // 自社の可視的成功が呼ぶ参入
+export const ATTR_SUCCESS = 0.35; // v0.7.2：自社の成功が呼ぶ参入を緩和（0.6→0.35）
 export const DMAT_REF = 0.02; // Δmaturityの規格化基準
 export const M_REF = 120; // 実効パイの規格化基準
 export const EXIT_RATE = 0.05; // 過密/冷却時の撤退速度
@@ -430,7 +431,9 @@ export const HOT_STALE_K = 0.6; // ホット市場の分析陳腐化短縮の強
 export const STALE_MIN = 3; // 最ホット市場の分析寿命の下限（ターン）
 
 /** §5.5 青写真tier（特化 vs 汎用）。 */
-export const QUAL_TIER_CAP = [55, 72, 88, 100]; // tier1..4 別の QUAL_p 天井
+// v0.7.2：tier1天井を55→62へ。口コミ立ち上げ帯(40+)に届き、汎用でも軌道に乗れるように。
+// 深いtierとの差（強い製品ほど大パイを取り切る）は維持。
+export const QUAL_TIER_CAP = [62, 75, 88, 100]; // tier1..4 別の QUAL_p 天井
 export const SPEC_CP_K = 0.06; // tier深度1あたりC_p +6%
 export const DEV_SPEC_K = 0.12; // tier深度1あたり展開ラグ −12%
 export const RP_T1 = 120; // tier1（参入切符）の基礎RP
@@ -438,9 +441,11 @@ export const TIER_GROWTH = 1.8; // tier毎のRP逓増
 /** tier別RPコスト = RP_T1 × TIER_GROWTH^(t-1)。設計書§5.4 で [120,216,389,700]。 */
 export const RP_TIER = [0, RP_T1, Math.round(RP_T1 * TIER_GROWTH), Math.round(RP_T1 * TIER_GROWTH ** 2), Math.round(RP_T1 * TIER_GROWTH ** 3)];
 
-/** §8 プロトタイプの初期成熟度オーバーライド（体感用：S1高成熟・S6低成熟）。 */
+/** §8 プロトタイプの初期成熟度オーバーライド（体感用）。
+ *  S1高成熟(混雑)・S6低成熟(空き)。S5(創業EC市場)は低成熟の green field(0.22)＝
+ *  ライバル薄く高シェアを取りやすい「最初の足場」にする（v0.7.2 死の谷対策）。 */
 export const MATURITY_INIT_OVERRIDE: Partial<Record<Sector, number>> = {
-  S1: 0.6, S6: 0.15,
+  S1: 0.6, S5: 0.08, S6: 0.15,
 };
 
 /* ============================================================

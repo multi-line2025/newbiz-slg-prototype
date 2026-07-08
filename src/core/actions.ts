@@ -172,7 +172,7 @@ export function launchProduct(state: ProtoGameState, blueprintId: Id, country: P
   const product: Product = {
     id: `prod-${blueprintId}-${country}-${state.turn}`,
     blueprintId, sector: bp.targetSector, country, marketId,
-    devTurns: 0, QUAL_p: 0,
+    devTurns: 0, QUAL_p: 0, qualFloor: 0, // 通常の新製品は担当チームで品質が決まる
     sticky: 3, paid: 0, stickySales: 0, // 種火の初期シェア3%
     adBudget: 0, prBudget: 0, commBudget: 0,
   };

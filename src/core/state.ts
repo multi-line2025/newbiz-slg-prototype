@@ -86,6 +86,7 @@ export interface Product {
   marketId: string; // 投入先の市場（sector:country）
   devTurns: number; // 開発ターン蓄積（devMaturity）
   QUAL_p: number; // 製品QUAL 0-100（毎ターン再計算）
+  qualFloor: number; // QUAL_pの下限（創業者のMVP寄与＝創業製品の底上げ。既定0・v0.7.2）
   // --- 市場シェア成分（市場成長モデル・製品×市場ごと）---
   sticky: number;
   paid: number;

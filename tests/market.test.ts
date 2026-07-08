@@ -23,7 +23,7 @@ function makeCompany(over: Partial<ProtoCompany> = {}): ProtoCompany {
 function makeProduct(over: Partial<Product> = {}): Product {
   return {
     id: "p1", blueprintId: "BP-620", sector: "S5", country: "US", marketId: "S5:US",
-    devTurns: 6, QUAL_p: 70, sticky: 10, paid: 0, stickySales: 0,
+    devTurns: 6, QUAL_p: 70, qualFloor: 0, sticky: 10, paid: 0, stickySales: 0,
     adBudget: 0, prBudget: 0, commBudget: 0, ...over,
   };
 }
@@ -57,8 +57,9 @@ describe("競争力と上限シェア（§3・§2.4）", () => {
 });
 
 describe("品質-広告整合（§5）", () => {
-  it("qualAdFit：40未満は0、85で1.0、100で1.2", () => {
-    expect(qualAdFit(30)).toBe(0);
+  it("qualAdFit：QUAL_AD_BACKFIRE(28)未満は0、85で1.0、100で1.2（v0.7.2で崖を28へ緩和）", () => {
+    expect(qualAdFit(20)).toBe(0);
+    expect(qualAdFit(28)).toBe(0);
     expect(qualAdFit(85)).toBeCloseTo(1.0);
     expect(qualAdFit(100)).toBeCloseTo(1.2);
   });
@@ -115,9 +116,10 @@ describe("force・口コミ形状", () => {
     expect(salesForce([emp("sales", null, { sales: 20 })])).toBe(0);
     expect(marketerForce([emp("marketer", "marketer", { marketing: 20 })])).toBeGreaterThan(0);
   });
-  it("wordOfMouth：QUAL60未満0・80超加速", () => {
-    expect(wordOfMouthTrac(50)).toBe(0);
-    const lo = wordOfMouthTrac(80) - wordOfMouthTrac(70);
+  it("wordOfMouth：QUAL40未満0・70超加速（v0.7.2で立ち上げを40へ）", () => {
+    expect(wordOfMouthTrac(39)).toBe(0);
+    expect(wordOfMouthTrac(50)).toBeGreaterThan(0); // 40〜70帯で立ち上がる
+    const lo = wordOfMouthTrac(70) - wordOfMouthTrac(60);
     const hi = wordOfMouthTrac(100) - wordOfMouthTrac(90);
     expect(hi).toBeGreaterThan(lo);
   });

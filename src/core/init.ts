@@ -46,15 +46,17 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
     poolIds.push(p.id);
   }
 
-  // 初期採用：創業製品(EC=eng/marketing/design)の品質規定式に効く役割を優先して安く雇う。
-  // EC向けにエンジニア＋マーケター（不在なら安い順で補完）。序盤のランウェイは残す。
+  // 初期採用（v0.7.2 方針：人材は“普通”のまま。能力は底上げしない）。
+  // 死の谷の解消は成長レバー/しきい値の是正で行い、ここでは「役割の穴を塞ぐ」だけ。
+  // 安い駆け出しを 職種カバレッジ重視で採る：sales(turn1から効く直販レバー・§4.4)＋
+  // engineer(EC品質の主weight)＋marketer(EC品質＋広告効率)。能力値は普通。
   const hireCount = opts.hireCount ?? 2;
   const sortedBySalary = [...pool].sort((a, b) => a.salaryDemand - b.salaryDemand);
-  const preferred = ["engineer", "marketer", "designer"];
+  const preferred = ["sales", "engineer"];
   const picks: Person[] = [];
   for (const job of preferred) {
     if (picks.length >= hireCount) break;
-    const cand = sortedBySalary.find((p) => p.jobCategory === job && !picks.includes(p));
+    const cand = sortedBySalary.find((p) => p.jobCategory === job && !picks.includes(p)); // 各職種の“最安”＝普通の駆け出し
     if (cand) picks.push(cand);
   }
   for (const p of sortedBySalary) {
@@ -69,10 +71,9 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
       equity: 0,
       salary: p.salaryDemand,
     };
-    // 初期社員は自分の職種ロールに配属（役割貢献・使用係数が有効になる）
+    // 普通の駆け出しをそのまま配属（能力・忠誠・士気は素のまま）。
     people[p.id] = { ...p, contract, morale: 60, assignedRole: p.jobCategory };
     employeeIds.push(p.id);
-    // 採用した人は候補プールから外す
     const idx = poolIds.indexOf(p.id);
     if (idx >= 0) poolIds.splice(idx, 1);
   }
@@ -85,11 +86,12 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
   const starter: Product = {
     id: "prod-starter",
     blueprintId: "BP-620", sector: "S5", country, marketId: starterMarket,
-    devTurns: 3, QUAL_p: 0,
+    devTurns: 4, QUAL_p: 0, // 少しだけ開発を積んだ状態で船出（普通の水準）
+    qualFloor: 0, // 品質フロアは無し（人材/開発で決まる普通のQUAL_p）
     sticky: 8, paid: 0, stickySales: 0, // 種火の初期シェア8%
     adBudget: 0, prBudget: 0, commBudget: 0,
   };
-  starter.QUAL_p = computeQualP("BP-620", team, starter.devTurns, era, 1); // 創業＝tier1切符
+  starter.QUAL_p = computeQualP("BP-620", team, starter.devTurns, era, 1); // tier1切符（普通のQUAL_p）
   const assignments: Record<string, string> = {};
   for (const id of employeeIds) assignments[id] = starter.id;
 

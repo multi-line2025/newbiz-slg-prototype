@@ -27,11 +27,15 @@ import { clamp } from "./util";
  * 基本形状・力（§4.3 / §4.6）
  * ============================================================ */
 
-/** QUAL依存の口コミ形状：QUAL<60で0、60〜80で0→1.5、80超で加速（§4.3）。 */
+/**
+ * QUAL依存の口コミ形状（§4.3・v0.7.2で崖を撤去）。
+ * QUAL<40で0、40〜70で緩やかに0→2.5、70超で加速。
+ * これで tier1(天井62)の創業製品でも口コミ圏に入れる（旧60の崖を解消）。
+ */
 export function wordOfMouthTrac(qual: number): number {
-  if (qual < 60) return 0;
-  if (qual <= 80) return ((qual - 60) / 20) * 1.5;
-  return 1.5 + ((qual - 80) / 20) * 3.0;
+  if (qual < 40) return 0;
+  if (qual <= 70) return ((qual - 40) / 30) * 2.5;
+  return 2.5 + ((qual - 70) / 30) * 3.0;
 }
 
 /** 稼働係数：過労・病欠で低下（§4.6）。 */
@@ -182,8 +186,10 @@ export function stepProductMarket(
   const uPr = product.prBudget / 1000;
   const womQ = wordOfMouthTrac(qualP);
   if (womQ > 0) {
+    // v0.7.2：種火要件を緩やかに（0.3+0.7×TRAC → 0.55+0.45×TRAC）。
+    // TRACゼロ近傍でも口コミが立ち上がり、初製品が軌道に乗れるように。
     dSticky += KPR * womQ *
-      (0.3 + 0.7 * (tracNow / 100)) *
+      (0.55 + 0.45 * (tracNow / 100)) *
       (0.5 + 0.5 * Math.min(1, company.THxP_customer / TH_REF)) *
       (1 + KREP_ORG * (company.reputation / 100)) *
       (1 + 0.5 * uPr) * roomEarned;

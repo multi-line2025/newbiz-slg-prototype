@@ -96,12 +96,12 @@ describe("青写真tier：特化 vs 汎用（§5）", () => {
     expect(tierCap(1)).toBeLessThan(tierCap(4));
   });
 
-  it("★QUAL_pはtier天井で頭打ち：エース集めてもtier1は55止まり、tier4なら超えられる", () => {
+  it("★QUAL_pはtier天井で頭打ち：エース集めてもtier1はQUAL_TIER_CAP[0]止まり、tier4なら超えられる", () => {
     // 高能力チーム（福祉＝sales）でtier1とtier4を比較
     const team = [emp("sales", "sales", { sales: 20 }), emp("sales", "sales", { sales: 19 }), emp("manager", "manager", { management: 20 })];
     const t1 = computeQualP("BP-510", team, 6, "internet", 1);
     const t4 = computeQualP("BP-510", team, 6, "internet", 4);
-    expect(t1).toBeLessThanOrEqual(55 + 1e-6); // tier1天井
+    expect(t1).toBeLessThanOrEqual(QUAL_TIER_CAP[0] + 1e-6); // tier1天井(62)
     expect(t4).toBeGreaterThan(t1); // 特化で天井が上がる
   });
 

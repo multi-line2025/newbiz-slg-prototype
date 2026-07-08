@@ -17,7 +17,7 @@ function makeCompany(over: Partial<ProtoCompany> = {}): ProtoCompany {
 function makeProduct(over: Partial<Product> = {}): Product {
   return {
     id: "p1", blueprintId: "BP-620", sector: "S5", country: "US", marketId: "S5:US",
-    devTurns: 6, QUAL_p: 80, sticky: 45, paid: 0, stickySales: 0,
+    devTurns: 6, QUAL_p: 80, qualFloor: 0, sticky: 45, paid: 0, stickySales: 0,
     adBudget: 0, prBudget: 0, commBudget: 0, ...over,
   };
 }
@@ -27,10 +27,10 @@ function lowMaturityMarket(): MarketState {
 }
 
 describe("qualGate（§3.1）", () => {
-  it("QUAL_p<50は市場を育てない、85で満ヒット", () => {
+  it("QUAL_p<QUAL_HIT_MINは市場を育てない、85で満ヒット", () => {
     expect(qualGate(QUAL_HIT_MIN - 1)).toBe(0);
     expect(qualGate(85)).toBeCloseTo(1);
-    expect(qualGate(67.5)).toBeCloseTo(0.5);
+    expect(qualGate((QUAL_HIT_MIN + 85) / 2)).toBeCloseTo(0.5); // 中点で0.5
   });
 });
 

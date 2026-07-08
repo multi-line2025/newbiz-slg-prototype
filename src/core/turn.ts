@@ -25,7 +25,7 @@ import { rpPerTurn, eraForTurn, sectorTier } from "./research";
 import { checkAchievements } from "./achievements";
 import { makePRNG } from "./prng";
 import { clamp } from "./util";
-import { POACH_BASE, POACH_VULN_MIN, ANALYSIS_STEPS } from "./model/constants";
+import { POACH_BASE, POACH_VULN_MIN, ANALYSIS_STEPS, QUAL_TIER_CAP as TIER_CAP } from "./model/constants";
 
 /** advanceTurn の戻り値。log は今ターンの出来事。 */
 export interface TurnResult {
@@ -107,7 +107,9 @@ export function advanceTurn(state: ProtoGameState): TurnResult {
     const team = productTeam(s, p.id);
     const devTurns = p.devTurns + (team.length > 0 ? 1 : 0); // 担当が居れば開発が進む
     const tier = sectorTier(p.sector, s.company.unlockedBlueprints);
-    const QUAL_p = computeQualP(p.blueprintId, team, devTurns, s.era, tier);
+    // 創業製品は qualFloor（創業者のMVP寄与）を下限に。ただしtier天井は超えない（v0.7.2）。
+    const cap = TIER_CAP[Math.max(1, tier) - 1];
+    const QUAL_p = Math.min(Math.max(computeQualP(p.blueprintId, team, devTurns, s.era, tier), p.qualFloor ?? 0), cap);
     return { ...p, devTurns, QUAL_p };
   });
 

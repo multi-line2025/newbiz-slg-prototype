@@ -31,7 +31,7 @@ TypeScript + Vite。ロジックはブラウザ非依存の純粋関数（`src/c
 ```bash
 npm install
 npm run dev          # 開発サーバー
-npm test             # テスト（134件）
+npm test             # テスト（138件・序盤オンボーディング回帰含む）
 npm run build        # 通常ビルド（dist/）
 npm run build:single # 単一HTMLビルド（dist-single/、配布・Pages用）
 ```
