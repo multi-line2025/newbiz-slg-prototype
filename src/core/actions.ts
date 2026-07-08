@@ -17,7 +17,7 @@ import {
   RECRUIT_TURNS, MAX_PENDING_OFFERS, OFFER_PA_MARGIN_DIV, OFFER_BASE, OFFER_SALARY_K,
   OFFER_AMBITION_K, OFFER_ACCEPT_MIN, OFFER_ACCEPT_MAX,
   COURT_BASE, PROPOSE_BASE, MARRIAGE_LUMP, ROMANCE_MIN_AGE,
-  EDU_COST, EDU_GROWTH_K, CHILD_GROW_ENV,
+  EDU_COST, EDU_GROWTH_K, CHILD_GROW_ENV, MARRIAGE_SCOUT_COST,
 } from "./model/constants";
 import { getBlueprint, blueprintStatus } from "./research";
 import { marketSizeOf } from "./markets";
@@ -27,7 +27,7 @@ import { reachablePaMax } from "./talentPool";
 import { clamp } from "./util";
 import { makePRNG } from "./prng";
 import { applyGrowth } from "./growth";
-import { repMatchProbability, isBloodRelated } from "./family";
+import { repMatchProbability, isBloodRelated, marriageCandidate, currentLover } from "./family";
 
 /** アクションの結果。ok=false なら state は元のまま。 */
 export interface ActionResult {
@@ -223,18 +223,17 @@ export function resolvePendingHires(
 
 /**
  * 求愛（§9・恋愛）。★評判の釣り合いゲート×確率で交際(lover)に発展。PA・数値は露出しない。
- *  失敗（振られる）でも ok=true（AP消費・結果はメッセージ）。相手プールはワールドの独身成人。
+ *  失敗（振られる）でも ok=true（AP消費・結果はメッセージ）。相手プールは結婚市場（v0.14）。
  */
 export function courtCandidate(state: ProtoGameState, personId: Id): ActionResult {
   const pc = state.people[state.pc.personId];
-  const t = state.people[personId];
+  const t = marriageCandidate(state, personId);
   if (!t) return fail(state, "対象が見つかりません。");
-  if (t.id === pc.id) return fail(state, "自分自身は対象にできません。");
+  if (state.pc.spouseId) return fail(state, "既に配偶者がいます。");
+  if (currentLover(state)) return fail(state, "既に交際中の相手がいます。");
   if (t.sex === pc.sex) return fail(state, `${t.name}とは結ばれません。`);
   if (t.age < ROMANCE_MIN_AGE) return fail(state, `${t.name}はまだ成人していません。`);
   if (isBloodRelated(state.pc.bloodlineId, t)) return fail(state, `${t.name}は血族のため結ばれません（§9.3.3）。`);
-  if (t.relationToPC === "lover") return fail(state, `${t.name}とは既に交際中です。`);
-  if (t.relationToPC === "spouse") return fail(state, `${t.name}は既に配偶者です。`);
   if (t.relationToPC !== "none") return fail(state, `${t.name}は恋愛対象外です。`);
   if (state.ap < 1) return fail(state, "APが足りません（必要1AP）。");
   const prob = COURT_BASE * repMatchProbability(pc.reputation, t.reputation);
@@ -243,25 +242,19 @@ export function courtCandidate(state: ProtoGameState, personId: Id): ActionResul
   const success = rng.chance(prob);
   const familySeed = rng.nextSeed();
   if (success) {
-    return {
-      state: {
-        ...state, ap: state.ap - 1, familySeed,
-        people: withPerson(state, { ...t, relationToPC: "lover" }),
-        poolIds: state.poolIds.filter((id) => id !== personId), // 交際相手は採用プールから外す
-      },
-      ok: true,
-      message: `💘 ${t.name} との交際が始まりました。`,
-    };
+    const marriagePool = state.marriagePool.map((p) => (p.id === personId ? { ...p, relationToPC: "lover" as const } : p));
+    return { state: { ...state, ap: state.ap - 1, familySeed, marriagePool }, ok: true, message: `💘 ${t.name} との交際が始まりました。` };
   }
   return { state: { ...state, ap: state.ap - 1, familySeed }, ok: true, message: `${t.name} に振られました。またの機会に。` };
 }
 
 /**
  * 求婚（§9・結婚）。交際中(lover)の相手に、評判釣り合い×確率で結婚(spouse)。3AP＋結婚一時金。
+ *  成立で相手を結婚市場から people(配偶者) へ移す。
  */
 export function proposeMarriage(state: ProtoGameState, personId: Id): ActionResult {
   const pc = state.people[state.pc.personId];
-  const t = state.people[personId];
+  const t = marriageCandidate(state, personId);
   if (!t) return fail(state, "対象が見つかりません。");
   if (state.pc.spouseId) return fail(state, "既に配偶者がいます。");
   if (t.relationToPC !== "lover") return fail(state, `${t.name}とはまず交際する必要があります。`);
@@ -273,17 +266,41 @@ export function proposeMarriage(state: ProtoGameState, personId: Id): ActionResu
   const success = rng.chance(prob);
   const familySeed = rng.nextSeed();
   if (success) {
+    const spouse: Person = { ...t, relationToPC: "spouse" };
     return {
       state: {
         ...state, ap: state.ap - 3, familySeed,
         pc: { ...state.pc, spouseId: personId, wealth: state.pc.wealth - MARRIAGE_LUMP },
-        people: withPerson(state, { ...t, relationToPC: "spouse" }),
+        people: withPerson(state, spouse), // 配偶者は people 側へ（妊娠/出産・インカム機構に接続）
+        marriagePool: state.marriagePool.filter((p) => p.id !== personId),
       },
       ok: true,
       message: `💍 ${t.name} と結婚しました！`,
     };
   }
   return { state: { ...state, ap: state.ap - 1, familySeed }, ok: true, message: `${t.name} に求婚を断られました。` };
+}
+
+/**
+ * 結婚候補の身辺調査（v0.14・fog解除）。個人資産と1APで、正確な評判＋CA/PAを開示する（見合い＝DD）。
+ */
+export function scoutMarriageCandidate(state: ProtoGameState, personId: Id): ActionResult {
+  const t = marriageCandidate(state, personId);
+  if (!t) return fail(state, "対象が見つかりません。");
+  if (t.scoutLevel >= 1) return fail(state, `${t.name}は既に調査済みです。`);
+  if (state.ap < 1) return fail(state, "APが足りません（必要1AP）。");
+  if (state.pc.wealth < MARRIAGE_SCOUT_COST) return fail(state, `調査費 $${MARRIAGE_SCOUT_COST.toLocaleString()} が不足しています。`);
+  const marriagePool = state.marriagePool.map((p) => (p.id === personId ? { ...p, scoutLevel: 1 as const } : p));
+  return {
+    state: { ...state, ap: state.ap - 1, pc: { ...state.pc, wealth: state.pc.wealth - MARRIAGE_SCOUT_COST }, marriagePool },
+    ok: true,
+    message: `🔍 ${t.name} の身辺を調査しました（評判・能力を開示）。`,
+  };
+}
+
+/** 子作りトグルの設定（v0.14）。ONのターンのみ受胎判定が走る。 */
+export function setTryForChild(state: ProtoGameState, value: boolean): ActionResult {
+  return { state: { ...state, tryForChild: value }, ok: true, message: value ? "子作りをONにしました。" : "子作りをOFFにしました。" };
 }
 
 /**

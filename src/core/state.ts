@@ -149,6 +149,8 @@ export interface ProtoGameState {
   pregnancy: Pregnancy | null; // 妊娠状態（§9.3・v0.13）
   childEducation: Record<Id, number>; // 子ID→教育投資レベル（成長加速・§9.4・v0.13）
   familySeed: number; // 家族系アクション（求愛/求婚）の乱数種（turn乱数と分離・決定論）
+  tryForChild: boolean; // 子作りトグル（ONのターンのみ受胎判定・既定OFF・v0.14）
+  marriagePool: Person[]; // 結婚市場の候補（人材DBとは別・評判分布・毎ターン動的入替・v0.14）
   markets: Record<string, MarketState>; // 多市場グリッド（セクター×国・§1）
   products: Product[]; // 自社製品（青写真×市場）
   assignments: Record<Id, Id>; // 社員ID → 配属先製品ID（QUAL_p・force算出に使用）

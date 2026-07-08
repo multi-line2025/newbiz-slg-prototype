@@ -8,12 +8,14 @@
  * ======================================================================
  */
 
-import type { PRNG } from "./prng";
-import type { Person, Sex } from "./model/types";
+import { makePRNG, type PRNG } from "./prng";
+import type { Person, Sex, PlayableCountry } from "./model/types";
 import type { ProtoGameState, Pregnancy } from "./state";
 import {
   REP_MATCH_MAX, ROMANCE_MIN_AGE, CONCEIVE_BASE, GESTATION_TURNS, PA_MUTATION,
   EDU_GROWTH_K, CHILD_GROW_ENV,
+  PC_SALARY_BASE, LIFESTYLE_COST_BASE, SPOUSE_INCOME_K,
+  MARRIAGE_POOL_SIZE, MARRIAGE_CHURN, MARRIAGE_MIN_AGE, MARRIAGE_MAX_AGE,
 } from "./model/constants";
 import { buildPerson, computeCA } from "./person";
 import { applyGrowth } from "./growth";
@@ -22,6 +24,36 @@ import { clamp } from "./util";
 /** PC本人の Person。 */
 export function pcPerson(state: ProtoGameState): Person {
   return state.people[state.pc.personId];
+}
+
+/** 姓（氏名の最終トークン）。子の姓継承・世代の一貫性に使う（v0.14）。 */
+export function surnameOf(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1];
+}
+/** 名（氏名の先頭トークン）。 */
+function givenOf(name: string): string {
+  return name.trim().split(/\s+/)[0];
+}
+
+/* ============================================================
+ * v0.14：個人資産の収支（PC役員報酬・生活費・配偶者インカム）
+ * ============================================================ */
+
+/** PC役員報酬（会社CASH→wealth）。lifestyleに比例。控えめ＝両業態の生存を維持。 */
+export function pcSalary(state: ProtoGameState): number {
+  return Math.round(PC_SALARY_BASE * state.pc.lifestyleFactor);
+}
+/** 個人の生活費（wealthから）。lifestyleに比例。 */
+export function lifestyleCost(state: ProtoGameState): number {
+  return Math.round(LIFESTYLE_COST_BASE * state.pc.lifestyleFactor);
+}
+/** 配偶者インカム（世帯収入→wealth）。有能・高評判な伴侶ほど稼ぐ（会社CASHではない）。 */
+export function spouseIncome(state: ProtoGameState): number {
+  if (!state.pc.spouseId) return 0;
+  const sp = state.people[state.pc.spouseId];
+  if (!sp) return 0;
+  return Math.round(SPOUSE_INCOME_K * (sp.CA / 10 + sp.reputation / 10));
 }
 
 /**
@@ -55,18 +87,92 @@ export function isBloodRelated(pcBloodline: string, p: Person): boolean {
   return p.bloodlineId != null && p.bloodlineId === pcBloodline;
 }
 
+/* ============================================================
+ * v0.14：結婚市場（人材DBとは別の専用プール・評判分布・動的入替・スカウトfog）
+ * ============================================================ */
+
+/** 結婚候補を1人生成（評判は0-100で広く分布＝能力とは独立。scoutLevel=0でfog）。 */
+export function generateMarriageCandidate(country: PlayableCountry, era: ProtoGameState["era"], rng: PRNG): Person {
+  const PA = rng.int(60, 185);       // 能力は幅広い
+  const age = rng.int(MARRIAGE_MIN_AGE, MARRIAGE_MAX_AGE);
+  const p = buildPerson({ PA, age, nationality: country, era, hireCountry: country }, rng, "marry");
+  p.reputation = rng.int(0, 100);    // ★評判は能力と独立に0-100へ広く分布（常に釣り合う相手が居る）
+  p.scoutLevel = 0;                  // 未スカウト＝能力・正確な評判は不明（fog）
+  p.relationToPC = "none";
+  p.bloodlineId = null;              // 外部＝血族でない
+  return p;
+}
+
+/** 結婚市場プールを新規生成（初期・MARRIAGE_POOL_SIZE 人）。 */
+export function generateMarriagePool(country: PlayableCountry, era: ProtoGameState["era"], rng: PRNG): Person[] {
+  const pool: Person[] = [];
+  for (let i = 0; i < MARRIAGE_POOL_SIZE; i++) pool.push(generateMarriageCandidate(country, era, rng));
+  return pool;
+}
+
 /**
- * 恋愛/結婚の相手プール＝ワールドの独身成人（§原案6・DBから選ぶ）。
- *  異性・成人・独身(relationToPC==="none")・非血族。社内恋愛可（社員も対象）。
+ * 結婚市場を1ターン分だけ動的に入れ替える（他所で結婚して退出／新規登場）。
+ * 交際中(lover)は退出させない。turn乱数と分離した専用rngで決定論（非回帰維持）。
+ */
+export function churnMarriagePool(state: ProtoGameState): Person[] {
+  const rng = makePRNG((state.familySeed ^ (state.turn * 2654435761)) >>> 0);
+  const keep: Person[] = [];
+  const removable: Person[] = [];
+  for (const p of state.marriagePool) {
+    if (p.relationToPC === "lover") keep.push(p); // 交際中は残す
+    else removable.push(p);
+  }
+  // 退出：非loverから MARRIAGE_CHURN 人を除く
+  const churn = Math.min(MARRIAGE_CHURN, removable.length);
+  const idx = new Set<number>();
+  while (idx.size < churn) idx.add(rng.int(0, removable.length - 1));
+  const survivors = removable.filter((_, i) => !idx.has(i));
+  const next = [...keep, ...survivors];
+  // 新規登場：プールサイズを維持
+  while (next.length < MARRIAGE_POOL_SIZE) {
+    next.push(generateMarriageCandidate(state.company.foundedCountry, state.era, rng));
+  }
+  return next;
+}
+
+/** 結婚市場からIDで候補を引く（lover含む）。 */
+export function marriageCandidate(state: ProtoGameState, id: string): Person | undefined {
+  return state.marriagePool.find((p) => p.id === id);
+}
+
+/** 現在の交際相手（lover）。無ければ null。 */
+export function currentLover(state: ProtoGameState): Person | null {
+  return state.marriagePool.find((p) => p.relationToPC === "lover") ?? null;
+}
+
+/** 候補の可視評判ビュー（fog）。未スカウトは評判バンドのみ、スカウト済みは正確な評判＋CA/PA。 */
+export interface MarriageView {
+  scouted: boolean;
+  repExact: number | null; // スカウト済みのみ
+  repBandLow: number;      // 未スカウト時の概略バンド
+  repBandHigh: number;
+  ca: number | null;
+  pa: number | null;
+}
+export function marriageView(p: Person): MarriageView {
+  if (p.scoutLevel >= 1) {
+    return { scouted: true, repExact: p.reputation, repBandLow: p.reputation, repBandHigh: p.reputation, ca: p.CA, pa: p.PA };
+  }
+  const low = clamp(Math.floor((p.reputation - 10) / 10) * 10, 0, 100);
+  return { scouted: false, repExact: null, repBandLow: low, repBandHigh: Math.min(100, low + 20), ca: null, pa: null };
+}
+
+/**
+ * 恋愛/結婚の相手プール＝結婚市場の独身成人（v0.14・専用プール）。
+ *  異性・成人・独身(relationToPC==="none")・非血族。
  */
 export function eligiblePartners(state: ProtoGameState): Person[] {
   const pc = pcPerson(state);
-  return Object.values(state.people).filter(
+  return state.marriagePool.filter(
     (p) =>
-      p.id !== pc.id &&
       p.sex !== pc.sex && // 異性（妊娠機構の都合・簡略。判断で補足）
       p.age >= ROMANCE_MIN_AGE &&
-      p.relationToPC === "none" && // 独身（lover/spouse/child でない）
+      p.relationToPC === "none" && // 独身（交際中の相手は別枠）
       !isBloodRelated(state.pc.bloodlineId, p)
   );
 }
@@ -107,6 +213,8 @@ export function buildChild(
   child.bloodlineId = state.pc.bloodlineId;
   child.relationToPC = "child";
   child.isSuccessorCandidate = true;
+  // v0.14：姓はPCの姓を継承（名はランダムのまま）。世代をまたいで姓が一貫する。
+  child.name = `${givenOf(child.name)} ${surnameOf(pcPerson(state).name)}`;
   return child;
 }
 
@@ -145,7 +253,22 @@ export function stepFamily(state: ProtoGameState, rng: PRNG): FamilyStepResult {
   }
   s = { ...s, people };
 
-  // --- 3) 妊娠→出産（§9.3） ---
+  // --- 2b) 個人資産の収支（v0.14）：PC役員報酬（会社CASH→wealth）＋配偶者インカム − 生活費 ---
+  {
+    const salary = pcSalary(s);
+    const income = spouseIncome(s);
+    const living = lifestyleCost(s);
+    s = {
+      ...s,
+      company: { ...s.company, CASH: s.company.CASH - salary }, // 会社が役員報酬を支出
+      pc: { ...s.pc, wealth: s.pc.wealth + salary + income - living },
+    };
+  }
+
+  // --- 2c) 結婚市場の動的入替（v0.14・専用rngでturn乱数と分離＝経済は非回帰） ---
+  s = { ...s, marriagePool: churnMarriagePool(s) };
+
+  // --- 3) 妊娠→出産（§9.3。子作りトグルONのターンのみ受胎判定・v0.14） ---
   if (s.pregnancy) {
     if (s.turn >= s.pregnancy.dueTurn) {
       const father = s.people[s.pregnancy.fatherId];
@@ -163,8 +286,8 @@ export function stepFamily(state: ProtoGameState, rng: PRNG): FamilyStepResult {
         s = { ...s, pregnancy: null };
       }
     }
-  } else if (s.pc.spouseId) {
-    // 未妊娠かつ既婚：受胎判定（両親の妊孕性が積で効く）
+  } else if (s.pc.spouseId && s.tryForChild) {
+    // 未妊娠・既婚・子作りON：受胎判定（両親の妊孕性が積で効く）
     const pc = pcPerson(s);
     const spouse = s.people[s.pc.spouseId];
     if (spouse) {

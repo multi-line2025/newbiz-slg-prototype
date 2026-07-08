@@ -16,6 +16,7 @@ import { computeQualP } from "./product";
 import { generateMarkets, marketId } from "./markets";
 import { snapshotRivals } from "./rivals";
 import { buildPerson } from "./person";
+import { generateMarriagePool } from "./family";
 import { DEFAULT_MISSION_TAGS, WORLD_POOL_SIZE, ORDINARY_PA_MIN, UNSKILLED_PA_MAX, type Archetype } from "./model/constants";
 
 export interface InitOptions {
@@ -177,6 +178,8 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
     pregnancy: null,
     childEducation: {},
     familySeed: seed ^ 0x1d872b41, // 家族アクション（求愛/求婚）専用の乱数種
+    tryForChild: false, // 子作りは既定OFF（ONのターンのみ受胎・v0.14）
+    marriagePool: generateMarriagePool(country, era, makePRNG(seed ^ 0x9e3ab21f)), // 結婚市場（専用rng＝非回帰）
     markets,
     products: [starter],
     assignments,

@@ -29,12 +29,17 @@ import {
   courtCandidate,
   proposeMarriage,
   educateChild,
+  scoutMarriageCandidate,
+  setTryForChild,
   type ActionResult,
   type MarketChannel,
 } from "../core/actions";
 import { scoutedView, type ScoutView } from "../core/scout";
 import { aggregateRivals, type RivalView } from "../core/rivals";
-import { pcPerson, eligiblePartners, repMatchProbability, fertility } from "../core/family";
+import {
+  pcPerson, eligiblePartners, repMatchProbability, fertility,
+  currentLover, marriageView, spouseIncome, pcSalary, lifestyleCost,
+} from "../core/family";
 import { BLUEPRINTS, blueprintStatus, researchCoeff, rpPerTurn, blueprintForSector, sectorTier, breadthDepth, type LockReason } from "../core/research";
 import {
   productCompetitiveness, marketRivalComp, earnedShareCap, reachShareCap, productRevenue,
@@ -562,26 +567,59 @@ function matchLabel(pcRep: number, partnerRep: number): string {
   return `<span class="mv down">格差大（${Math.round(p * 100)}%）</span>`;
 }
 
-/** ② 家族タブ：配偶者・子・妊娠＋恋愛/結婚/教育コマンド。 */
+/** 結婚候補の評判・釣り合い行（fog：未調査は評判バンド＋推定、調査済みは正確値＋CA/PA）。 */
+function marriageInfoLine(p: { reputation: number; scoutLevel: number; CA: number; PA: number }): string {
+  const pcRep = pcPerson(state).reputation;
+  const v = marriageView(p as unknown as Parameters<typeof marriageView>[0]);
+  if (v.scouted) {
+    return `<span>評判 ${v.repExact} / CA ${v.ca} / PA ${v.pa}</span>${matchLabel(pcRep, v.repExact!)}`;
+  }
+  const mid = (v.repBandLow + v.repBandHigh) / 2;
+  const est = repMatchProbability(pcRep, mid);
+  const estLabel = est <= 0 ? `<span class="mv down">格が違いそう（要調査）</span>`
+    : est >= 0.5 ? `<span class="mv aggr">釣り合いそう（未調査）</span>`
+    : `<span class="mv aggr">やや格差か（未調査）</span>`;
+  return `<span class="blur">評判 ${v.repBandLow}〜${v.repBandHigh}（未調査）</span>${estLabel}`;
+}
+
+/** ② 家族タブ：配偶者・子・妊娠＋恋愛/結婚/教育コマンド（v0.14：結婚市場fog・両者妊孕性・子作りトグル・家計）。 */
 function familyTab(): string {
   const pc = pcPerson(state);
   const info = state.pc;
 
-  // 配偶者・妊娠
-  let spouseHtml = `<div class="muted">配偶者はいません。下の相手一覧から求愛しましょう。</div>`;
+  // --- 個人資産の家計（v0.14）---
+  const salary = pcSalary(state), income = spouseIncome(state), living = lifestyleCost(state);
+  const net = salary + income - living;
+  const budgetHtml = `<div class="sub-bar">
+      <span>💰 個人資産 <b>$${fmt(info.wealth)}</b></span>
+      <span class="muted">毎月：役員報酬 +$${fmt(salary)}${info.spouseId ? ` / 配偶者インカム +$${fmt(income)}` : ""} / 生活費 −$${fmt(living)} → <b class="${net >= 0 ? "good" : "danger"}">${net >= 0 ? "+" : ""}$${fmt(net)}</b></span>
+    </div>`;
+
+  // --- 配偶者・妊娠（両者の妊孕性を表示）＋子作りトグル ---
+  let spouseHtml = `<div class="muted">配偶者はいません。下の「結婚市場」から求愛しましょう。</div>`;
   if (info.spouseId) {
     const sp = state.people[info.spouseId];
-    const preg = state.pregnancy
-      ? `<div class="mv new">🤰 妊娠中：あと ${Math.max(0, state.pregnancy.dueTurn - state.turn)} ターンで出産</div>`
-      : `<div class="muted">妊孕性がある間は毎ターン一定確率で妊娠します（高齢ほど確率低下）。</div>`;
-    spouseHtml = sp ? `<div class="rcard">
+    if (sp) {
+      const pcFert = fertility(pc.age, pc.sex);
+      const spFert = fertility(sp.age, sp.sex);
+      const preg = state.pregnancy
+        ? `<div class="mv new">🤰 妊娠中：あと ${Math.max(0, state.pregnancy.dueTurn - state.turn)} ターンで出産</div>`
+        : `<label class="trychild"><input type="checkbox" data-trychild ${state.tryForChild ? "checked" : ""}> 子作りする（ONのターンのみ妊娠判定）</label>`;
+      const bothNote = (pcFert <= 0 || spFert <= 0)
+        ? `<div class="mv down">どちらかの妊孕性が0のため、現在は子を授かれません（男女双方の妊孕性が必要）。</div>` : "";
+      spouseHtml = `<div class="rcard">
         <div class="rc-head"><b>💍 ${sp.name}</b> <span class="muted">${sp.sex === "female" ? "女" : "男"} / ${sp.age.toFixed(1)}歳</span></div>
-        <div class="muted">妊孕性の目安：${(fertility(sp.age, sp.sex) * 100).toFixed(0)}%</div>
+        <div class="rc-tiers">
+          <span>あなたの妊孕性：${(pcFert * 100).toFixed(0)}%（${pc.sex === "female" ? "女" : "男"}・${pc.age.toFixed(0)}歳）</span>
+          <span>配偶者の妊孕性：${(spFert * 100).toFixed(0)}%（${sp.sex === "female" ? "女" : "男"}・${sp.age.toFixed(0)}歳）</span>
+        </div>
+        ${bothNote}
         ${preg}
-      </div>` : spouseHtml;
+      </div>`;
+    }
   }
 
-  // 子の一覧
+  // --- 子の一覧 ---
   const childrenHtml = info.childrenIds.length
     ? info.childrenIds.map((cid) => {
         const c = state.people[cid];
@@ -595,41 +633,46 @@ function familyTab(): string {
       }).join("")
     : `<div class="muted">子はまだいません。</div>`;
 
-  // 交際中（lover）＝求婚導線
-  const lovers = Object.values(state.people).filter((p) => p.relationToPC === "lover");
-  const loversHtml = lovers.length && !info.spouseId
-    ? lovers.map((p) => `<div class="rcard">
-        <div class="rc-head"><b>💘 ${p.name}</b> <span class="muted">${p.sex === "female" ? "女" : "男"} / ${p.age.toFixed(1)}歳・交際中</span></div>
-        <div class="rc-tiers"><span>相手の評判 ${p.reputation}</span>${matchLabel(pc.reputation, p.reputation)}</div>
-        <div class="rc-mv"><button class="mini offer" data-propose="${p.id}">求婚する<br><span class="cost">3AP / $${fmt(10000)}</span></button></div>
-      </div>`).join("")
-    : "";
+  // --- 交際中（lover：結婚市場側）＝求婚導線 ---
+  const lover = currentLover(state);
+  const loversHtml = lover && !info.spouseId
+    ? `<div class="rcard">
+        <div class="rc-head"><b>💘 ${lover.name}</b> <span class="muted">${lover.sex === "female" ? "女" : "男"} / ${lover.age.toFixed(1)}歳・交際中</span></div>
+        <div class="rc-tiers">${marriageInfoLine(lover)}</div>
+        <div class="rc-mv">${lover.scoutLevel < 1 ? `<button class="mini" data-mscout="${lover.id}">身辺調査<br><span class="cost">1AP/$${fmt(2000)}</span></button>` : ""}<button class="mini offer" data-propose="${lover.id}">求婚する<br><span class="cost">3AP / $${fmt(10000)}</span></button></div>
+      </div>` : "";
 
-  // 独身の相手プール（評判が近い順に上位20名）
+  // --- 結婚市場（fog付き・評判バンド、スカウトで開示）。評判が近い順。 ---
   const eligible = info.spouseId ? [] : eligiblePartners(state)
     .slice()
-    .sort((a, b) => Math.abs(a.reputation - pc.reputation) - Math.abs(b.reputation - pc.reputation))
-    .slice(0, 20);
+    .sort((a, b) => {
+      const va = marriageView(a), vb = marriageView(b);
+      const ca = a.scoutLevel >= 1 ? Math.abs(a.reputation - pc.reputation) : Math.abs((va.repBandLow + va.repBandHigh) / 2 - pc.reputation);
+      const cb = b.scoutLevel >= 1 ? Math.abs(b.reputation - pc.reputation) : Math.abs((vb.repBandLow + vb.repBandHigh) / 2 - pc.reputation);
+      return ca - cb;
+    })
+    .slice(0, 24);
   const partnersHtml = eligible.length
     ? `<div class="rgrid">${eligible.map((p) => `<div class="rcard">
         <div class="rc-head"><b>${p.name}</b> <span class="muted">${p.sex === "female" ? "女" : "男"} / ${p.age.toFixed(1)}歳</span></div>
-        <div class="rc-tiers"><span>相手の評判 ${p.reputation}</span>${matchLabel(pc.reputation, p.reputation)}</div>
-        <div class="rc-mv"><button class="mini offer" data-court="${p.id}">求愛する<br><span class="cost">1AP</span></button></div>
+        <div class="rc-tiers">${marriageInfoLine(p)}</div>
+        <div class="rc-mv">${p.scoutLevel < 1 ? `<button class="mini" data-mscout="${p.id}">身辺調査<br><span class="cost">1AP/$${fmt(2000)}</span></button>` : ""}<button class="mini offer" data-court="${p.id}">求愛する<br><span class="cost">1AP</span></button></div>
       </div>`).join("")}</div>`
     : (info.spouseId ? "" : `<div class="muted">条件に合う独身の相手がいません。</div>`);
 
   return `
     <section class="panel">
-      <h2>家族<span class="legend">恋愛・結婚は双方の評判の釣り合いが必要。結婚後、女性側の妊孕性がある間に子を授かる（§9.3）。</span></h2>
+      <h2>家族<span class="legend">恋愛・結婚は双方の評判の釣り合いが必要。結婚後、男女双方の妊孕性がある間に「子作りON」で子を授かる（§9.3）。</span></h2>
+      ${budgetHtml}
       ${spouseHtml}
     </section>
     <section class="panel">
-      <h2>子供（後継者候補）<span class="legend">教育で成長を加速（§9.4）。将来の世代交代の土台。</span></h2>
+      <h2>子供（後継者候補）<span class="legend">教育で成長を加速（§9.4）。将来の世代交代の土台。姓はあなたを継ぐ。</span></h2>
       <div class="rgrid">${childrenHtml}</div>
     </section>
     ${loversHtml ? `<section class="panel"><h2>交際中</h2><div class="rgrid">${loversHtml}</div></section>` : ""}
     ${info.spouseId ? "" : `<section class="panel">
-      <h2>相手を探す（ワールドの独身成人・評判が近い順）<span class="legend">個人評判が上がると高評判の相手が“釣り合う”。血族は対象外（§9.3.3）。</span></h2>
+      <h2>結婚市場（独身の候補・評判が近い順）<span class="legend">評判は未調査だと概略のみ。身辺調査で正確な評判・能力(CA/PA)を開示（見合い＝DD）。血族は対象外（§9.3.3）。</span></h2>
       ${partnersHtml}
     </section>`}`;
 }
@@ -1123,6 +1166,12 @@ function render(): void {
   );
   app.querySelectorAll<HTMLButtonElement>("[data-educate]").forEach((b) =>
     b.addEventListener("click", () => apply(educateChild(state, b.dataset.educate!)))
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-mscout]").forEach((b) =>
+    b.addEventListener("click", () => apply(scoutMarriageCandidate(state, b.dataset.mscout!)))
+  );
+  app.querySelectorAll<HTMLInputElement>("[data-trychild]").forEach((el) =>
+    el.addEventListener("change", () => apply(setTryForChild(state, el.checked)))
   );
   // 採用市場：職種フィルタ・並べ替え・ページング（v0.11）
   app.querySelectorAll<HTMLSelectElement>("[data-rjob]").forEach((sel) =>
