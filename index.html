@@ -253,6 +253,11 @@
       .prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
       .prod-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--panel2); }
       .prod-head { font-size: 13px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+      .prod-head b.link { cursor: pointer; }
+      .prod-head b.link:hover { color: var(--accent); }
+      /* 製品品質ヒント（v0.23） */
+      .qual-hint { font-size: 11px; color: var(--amber); background: rgba(245,165,36,0.08); border: 1px solid rgba(245,165,36,0.25); border-radius: 6px; padding: 5px 8px; margin-bottom: 8px; cursor: pointer; }
+      .qual-hint:hover { background: rgba(245,165,36,0.16); }
       .pch-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
       .pch { font-size: 11px; color: var(--muted); white-space: nowrap; }
       button.mini.xs { padding: 1px 6px; font-size: 11px; }

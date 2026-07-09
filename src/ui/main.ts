@@ -10,7 +10,7 @@
 
 import { initGame } from "../core/init";
 import { advanceTurn } from "../core/turn";
-import type { ProtoGameState, MarketState } from "../core/state";
+import type { ProtoGameState, MarketState, Product } from "../core/state";
 import { employees, poolPeople, productTeam, effectiveApMax, pcWorking, gameYear } from "../core/state";
 import {
   SECTORS25, FOUNDATIONS, SERVICES, techAvailable, serviceStatus, prereqTechsOf,
@@ -57,14 +57,15 @@ import {
   currentLover, marriageView, spouseIncome, pcSalary, lifestyleCost,
   validSuccessor, isFamilyMember,
 } from "../core/family";
-import { BLUEPRINTS, blueprintStatus, researchCoeff, rpPerTurn, blueprintForSector, sectorTier, breadthDepth, type LockReason } from "../core/research";
+import { BLUEPRINTS, blueprintStatus, researchCoeff, rpPerTurn, blueprintForSector, sectorTier, breadthDepth, getBlueprint, type LockReason } from "../core/research";
+import { qualComposite, qualPolish, devMaturity, eraFit, tierCap, laborCapacity } from "../core/product";
 import {
   productCompetitiveness, marketRivalComp, earnedShareCap, reachShareCap, productRevenue,
 } from "../core/market";
 import { marketEff, marketSizeOf } from "../core/markets";
 import { staleEff } from "../core/dynamics";
 import { analysisSkill, fitP, opportunityScore, analyzedRange } from "../core/analysis";
-import { SCOUT_STEPS, SECTOR_NAME, SECTORS, ANALYSIS_STEPS, DMAT_REF, SCOUT_SUB_COST, MAX_PENDING_OFFERS, PC_WORK_AP_PENALTY as PC_WORK_AP_PENALTY_UI } from "../core/model/constants";
+import { SCOUT_STEPS, SECTOR_NAME, SECTORS, ANALYSIS_STEPS, DMAT_REF, SCOUT_SUB_COST, MAX_PENDING_OFFERS, PC_WORK_AP_PENALTY as PC_WORK_AP_PENALTY_UI, QUAL_POLISH_MIN, QUAL_POLISH_MAX, LABOR_TIER_CAP } from "../core/model/constants";
 import { ACHIEVEMENTS, getAchievement, checkAchievements } from "../core/achievements";
 import { storage } from "../core/save";
 import type { Attributes } from "../core/model/types";
@@ -102,6 +103,7 @@ let state: ProtoGameState = initGame({ seed: freshSeed(), country: "US" });
 let toast = ""; // 直近アクションの結果メッセージ
 let selectedPersonId: string | null = null; // 詳細ビュー対象（nullで閉じる）
 let selectedTechNode: string | null = null; // 技術ツリー詳細（"t:ID" or "s:INDEX"・nullで閉じる・v0.22）
+let selectedProductId: string | null = null; // 製品詳細（nullで閉じる・v0.23）
 
 /** FM風タブ（グローバルHUDは常時表示、内容だけ切り替え）。 */
 type TabId = "overview" | "talent" | "market" | "rivals" | "products" | "research" | "techtree" | "finance" | "stock" | "career" | "family" | "achievements";
@@ -388,6 +390,109 @@ function blueprintPanel(): string {
 }
 
 /** 自社製品パネル（製品別QUAL_p・シェア・マーケ4チャネル予算）。 */
+/* ============================================================
+ * 製品品質の“伸ばし方”ヒント＋製品詳細（v0.23）
+ *   knowledge QUAL_p = 100×composite×polish×maturity×fit（tier天井でクランプ）
+ *   labor QUAL_p = 頭数スループット由来の低い固定天井
+ * ============================================================ */
+interface Levers {
+  isLabor: boolean; qual: number; cap: number; tier: number;
+  composite: number; polish: number; maturity: number; fit: number;
+  polishNorm: number; maturityNorm: number; baseUncapped: number; atCap: boolean;
+  bp: ReturnType<typeof getBlueprint>; team: import("../core/model/types").Person[]; laborCap: number;
+}
+/** 製品の5レバー内訳を計算する。 */
+function productLevers(p: Product): Levers {
+  const bp = getBlueprint(p.blueprintId);
+  const team = productTeam(state, p.id);
+  const tier = sectorTier(p.sector, state.company.unlockedBlueprints);
+  if (!bp || bp.archetype === "labor") {
+    return { isLabor: true, qual: p.QUAL_p, cap: LABOR_TIER_CAP, tier, composite: 0, polish: 0, maturity: 0, fit: 0, polishNorm: 0, maturityNorm: 0, baseUncapped: p.QUAL_p, atCap: p.QUAL_p >= LABOR_TIER_CAP - 0.5, bp, team, laborCap: laborCapacity(team) };
+  }
+  const composite = qualComposite(bp, team);
+  const polish = qualPolish(bp, team);
+  const maturity = devMaturity(p.devTurns, tier);
+  const fit = eraFit(bp, state.era);
+  const cap = tierCap(tier);
+  const baseUncapped = 100 * composite * polish * maturity * fit;
+  return {
+    isLabor: false, qual: p.QUAL_p, cap, tier, composite, polish, maturity, fit,
+    polishNorm: (polish - QUAL_POLISH_MIN) / (QUAL_POLISH_MAX - QUAL_POLISH_MIN),
+    maturityNorm: (maturity - 0.5) / 0.5, baseUncapped, atCap: baseUncapped >= cap - 0.5, bp, team, laborCap: 0,
+  };
+}
+/** 品質規定式の項を人間可読に（例：エンジニアの engineering(60%)）。 */
+function formulaText(bp: NonNullable<ReturnType<typeof getBlueprint>>): string {
+  return bp.qualFormula.map((t) => `${JOB_LABEL[t.role]}の${ATTR_LABEL[t.ability] ?? t.ability}(${Math.round(t.weight * 100)}%)`).join("・");
+}
+function polishText(bp: NonNullable<ReturnType<typeof getBlueprint>>): string {
+  return bp.qualPolishAbilities.map((a) => ATTR_LABEL[a as string] ?? a).join("・");
+}
+/** 律速要因を判定し、優先度順のヒント配列を返す（先頭＝最優先の一手）。 */
+function qualHints(lv: Levers): { icon: string; text: string }[] {
+  if (lv.isLabor) {
+    return [{ icon: "👥", text: `労働集約は頭数×基礎資質で決まり低天井(${LABOR_TIER_CAP})。人を増やし、現場管理(management)の高い人を1人入れると微増` }];
+  }
+  if (!lv.bp) return [];
+  if (lv.atCap) {
+    return [{ icon: "🚀", text: `tier天井 ${lv.cap} に到達。上位青写真（同セクターの次tier）を解放すると天井が上がる` }];
+  }
+  const items: { icon: string; text: string; norm: number }[] = [];
+  if (lv.composite < 0.75) items.push({ icon: "👥", text: `${formulaText(lv.bp)} の高CA人材を担当に配属（適性合成 ${(lv.composite * 100).toFixed(0)}%）`, norm: lv.composite });
+  if (lv.maturityNorm < 0.9) items.push({ icon: "⏳", text: `開発を継続（ターンを重ねると熟成が進む・現在 ${(lv.maturity * 100).toFixed(0)}%）`, norm: lv.maturityNorm });
+  if (lv.fit < 0.9) items.push({ icon: "📅", text: `このセクターは今の時代にやや不向き（時代適合 ${(lv.fit * 100).toFixed(0)}%）。適合するセクターを狙う`, norm: lv.fit });
+  if (lv.polishNorm < 0.5) items.push({ icon: "✨", text: `${polishText(lv.bp)} を持つ人材を担当に加えると磨き上げ↑（polish ${(lv.polish).toFixed(2)}）`, norm: lv.polishNorm });
+  items.sort((a, b) => a.norm - b.norm);
+  if (items.length === 0) return [{ icon: "✅", text: "担当・開発・時代がよく噛み合っています（大きな伸びしろは天井解放）" }];
+  return items.map(({ icon, text }) => ({ icon, text }));
+}
+
+/** 製品詳細モーダル（5レバー内訳・重視能力・担当・次の一手・v0.23）。 */
+function productModal(): string {
+  if (!selectedProductId) return "";
+  const p = state.products.find((x) => x.id === selectedProductId);
+  if (!p) return "";
+  const lv = productLevers(p);
+  const hints = qualHints(lv);
+  const title = `${SECTOR_NAME[p.sector]} × ${COUNTRY_LABEL[p.country]}`;
+  const bar = (label: string, v: number, note: string) => `<div class="ab" data-exact="${label} ${(v * 100).toFixed(1)}%">
+    <span class="ab-l">${label}</span><span class="ab-track"><span class="ab-fill" style="width:${Math.max(2, Math.min(100, v * 100))}%"></span></span><span class="ab-v" style="width:auto">${note}</span></div>`;
+  const teamRows = lv.team.length
+    ? lv.team.map((m) => {
+        const isPc = m.id === state.pc.personId;
+        let contrib = "その他/磨き";
+        if (!lv.isLabor && lv.bp) {
+          const term = lv.bp.qualFormula.find((t) => t.role === m.assignedRole);
+          if (term) contrib = `★主戦力（${ATTR_LABEL[term.ability] ?? term.ability} ${m.attributes.occupational[term.ability]}）`;
+        } else if (lv.isLabor) contrib = `頭数（体力/健康/協調/一貫）`;
+        return `<div class="d-row"><span>${m.name}${isPc ? "（社長兼務）" : ""} <span class="muted">CA ${m.CA} / ${m.assignedRole ? JOB_LABEL[m.assignedRole] : "未配属"}</span></span><span class="muted">${contrib}</span></div>`;
+      }).join("")
+    : `<div class="muted">担当が未配属です。人材タブから配属してください。</div>`;
+
+  const leverHtml = lv.isLabor
+    ? `<div class="d-note">労働集約：QUAL_p は「頭数×基礎資質(体力/健康/協調/一貫)＋現場管理」で決まり、<b>低い固定天井 ${LABOR_TIER_CAP}</b>。稼働力(laborCapacity) ${lv.laborCap.toFixed(2)}。品質より“さばける量”で稼ぐ業態です。</div>`
+    : `<div class="d-list">
+        ${bar("① 適性合成 composite", lv.composite, `${(lv.composite * 100).toFixed(0)}%`)}
+        ${bar("② 磨き polish", lv.polishNorm, `${lv.polish.toFixed(2)}`)}
+        ${bar("③ 開発成熟 maturity", lv.maturity, `${(lv.maturity * 100).toFixed(0)}%`)}
+        ${bar("④ 時代適合 fit", lv.fit, `${(lv.fit * 100).toFixed(0)}%`)}
+      </div>
+      <div class="d-note">QUAL_p ＝ 100 × composite × polish × maturity × fit ＝ <b>${lv.baseUncapped.toFixed(0)}</b> → tier天井 ${lv.cap} で ${lv.atCap ? `<b class="pa">天井到達</b>` : "クランプ前"} → 現在 <b class="pa">${lv.qual.toFixed(0)}</b>${lv.atCap ? "（⑤ 上位青写真で天井UP）" : ""}</div>`;
+
+  return `<div class="modal-bg" data-close="1">
+    <div class="modal">
+      <div class="modal-head"><div><b>📦 ${title}</b> <span class="muted">QUAL_p ${p.QUAL_p.toFixed(0)} / 天井${lv.cap}(t${lv.tier}) / 開発${p.devTurns}T</span></div><button class="mini" data-close="1">✕</button></div>
+      <h3 style="margin:6px 0;font-size:13px">品質の内訳（${lv.isLabor ? "労働集約" : "5レバー"}）</h3>
+      ${leverHtml}
+      ${lv.isLabor ? "" : `<div class="d-note">この製品が重視：<b>${lv.bp ? formulaText(lv.bp) : ""}</b> ／ 磨き：${lv.bp ? polishText(lv.bp) : ""}</div>`}
+      <h3 style="margin:10px 0 4px;font-size:13px">💡 次の一手（律速の優先順）</h3>
+      <div class="d-list">${hints.map((h) => `<div class="d-row"><span>${h.icon} ${h.text}</span></div>`).join("")}</div>
+      <h3 style="margin:10px 0 4px;font-size:13px">担当チーム（${lv.team.length}名）</h3>
+      <div class="d-list" style="max-height:32vh;overflow-y:auto">${teamRows}</div>
+    </div>
+  </div>`;
+}
+
 function productsPanel(): string {
   const c = state.company;
   const cards = state.products.map((p) => {
@@ -406,9 +511,11 @@ function productsPanel(): string {
       <span class="pch">${label} $${fmt(p[key])}
         <button class="mini xs" data-mbudget="${p.id}:${key}:-1">−</button>
         <button class="mini xs" data-mbudget="${p.id}:${key}:1">＋</button></span>`;
+    const hint = qualHints(productLevers(p))[0];
     return `<div class="prod-card">
-      <div class="prod-head"><b>${SECTOR_NAME[p.sector]} × ${COUNTRY_LABEL[p.country]}</b>
+      <div class="prod-head"><b class="link" data-product="${p.id}">${SECTOR_NAME[p.sector]} × ${COUNTRY_LABEL[p.country]} 🔍</b>
         <span class="muted">QUAL_p <b class="pa">${p.QUAL_p.toFixed(0)}</b>/天井${cap}(t${tier}) / 開発${p.devTurns}T / 担当${team.length}名${team.some((m) => m.id === state.pc.personId) ? `<span class="mv aggr" style="margin-left:4px">社長兼務</span>` : ""} / ${matTxt}</span></div>
+      ${hint ? `<div class="qual-hint" data-product="${p.id}">💡 ${hint.icon} ${hint.text} <span class="muted">（クリックで詳細）</span></div>` : ""}
       <div class="share-bar">
         <div class="sb-track">
           <div class="sb-sticky" style="width:${p.sticky}%"></div>
@@ -1504,17 +1611,22 @@ function render(): void {
     <main class="tabview">${tabContent()}</main>
     ${detailModal()}
     ${techTreeModal()}
+    ${productModal()}
     ${gameOverOverlay()}
     ${archetypeModal()}
   `;
 
   // --- タブ切替（アクティブタブはUI状態として保持）---
   app.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((b) =>
-    b.addEventListener("click", () => { activeTab = b.dataset.tab as TabId; selectedTechNode = null; render(); })
+    b.addEventListener("click", () => { activeTab = b.dataset.tab as TabId; selectedTechNode = null; selectedProductId = null; render(); })
   );
   // --- 技術/サービス詳細（v0.22）：モーダル内リンクで別ノードへ、背景/✕で閉じる ---
   app.querySelectorAll<HTMLElement>("[data-technode]").forEach((el) =>
     el.addEventListener("click", () => { selectedTechNode = el.dataset.technode!; render(); })
+  );
+  // --- 製品詳細（v0.23）：製品名/ヒントのクリックで開く ---
+  app.querySelectorAll<HTMLElement>("[data-product]").forEach((el) =>
+    el.addEventListener("click", () => { selectedProductId = el.dataset.product!; render(); })
   );
 
   // --- グローバルボタン ---
@@ -1532,7 +1644,7 @@ function render(): void {
     state = initGame({ seed: freshSeed(), country: "US", archetype });
     choosingArchetype = false;
     toast = archetype === "labor" ? "労働集約で新規開始しました。" : "知識集約で新規開始しました。";
-    selectedPersonId = null; selectedTechNode = null; recruitCountry = null; recruitPage = 0; recruitJob = "all"; recruitSort = "stars"; activeTab = "overview"; render();
+    selectedPersonId = null; selectedTechNode = null; selectedProductId = null; recruitCountry = null; recruitPage = 0; recruitJob = "all"; recruitSort = "stars"; activeTab = "overview"; render();
   };
   app.querySelectorAll<HTMLElement>("[data-arch]").forEach((el) =>
     el.addEventListener("click", () => startWith(el.dataset.arch as "labor" | "knowledge"))
@@ -1553,7 +1665,7 @@ function render(): void {
     el.addEventListener("click", () => { selectedPersonId = el.dataset.person!; render(); })
   );
   app.querySelectorAll<HTMLElement>("[data-close]").forEach((el) =>
-    el.addEventListener("click", (e) => { if (e.target === el) { selectedPersonId = null; selectedTechNode = null; render(); } })
+    el.addEventListener("click", (e) => { if (e.target === el) { selectedPersonId = null; selectedTechNode = null; selectedProductId = null; render(); } })
   );
 
   // --- 表内の動的ボタン（イベント委譲）---
