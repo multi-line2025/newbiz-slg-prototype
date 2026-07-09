@@ -32,6 +32,9 @@ import {
   scoutMarriageCandidate,
   setTryForChild,
   releasePC,
+  designateSuccessor,
+  retire,
+  hireFamily,
   type ActionResult,
   type MarketChannel,
 } from "../core/actions";
@@ -40,6 +43,7 @@ import { aggregateRivals, type RivalView } from "../core/rivals";
 import {
   pcPerson, eligiblePartners, repMatchProbability, fertility,
   currentLover, marriageView, spouseIncome, pcSalary, lifestyleCost,
+  validSuccessor, isFamilyMember,
 } from "../core/family";
 import { BLUEPRINTS, blueprintStatus, researchCoeff, rpPerTurn, blueprintForSector, sectorTier, breadthDepth, type LockReason } from "../core/research";
 import {
@@ -113,9 +117,10 @@ let recruitJob: JobCategory | "all" = "all";
 let recruitPage = 0;
 const RECRUIT_PAGE_SIZE = 20; // 1ページ描画数（500人でも軽い）
 
-/** その人物が現在“見える”か（社員＝常に可視／候補＝その国のサブスク加入時のみ・v0.10）。 */
+/** その人物が現在“見える”か（社員/家族＝常に可視／候補＝その国のサブスク加入時のみ）。 */
 function isVisible(p: { id: string; nationality: string }): boolean {
   if (state.employeeIds.includes(p.id)) return true;
+  if (isFamilyMember(state, p.id)) return true; // v0.18：家族（実子・兄弟姉妹・配偶者）は常時可視
   return state.scoutSubscriptions.includes(p.nationality as PlayableCountry);
 }
 /** サブスク可視性を織り込んだ scoutedView。 */
@@ -660,19 +665,48 @@ function familyTab(): string {
     }
   }
 
-  // --- 子の一覧 ---
+  // --- 子の一覧（能力常時可視・後継者指定/自社雇用・現後継者を明示・§10） ---
   const childrenHtml = info.childrenIds.length
     ? info.childrenIds.map((cid) => {
         const c = state.people[cid];
         if (!c) return "";
         const edu = state.childEducation[cid] ?? 0;
-        return `<div class="rcard">
-          <div class="rc-head"><b>👶 ${c.name}</b> <span class="muted">${c.sex === "female" ? "女" : "男"} / ${c.age.toFixed(1)}歳</span></div>
+        const adult = c.age >= 18;
+        const isSucc = info.successorId === cid;
+        const employed = state.employeeIds.includes(cid);
+        const succBtn = adult
+          ? `<button class="mini ${isSucc ? "offer" : ""}" data-designate="${cid}">${isSucc ? "★後継者（解除）" : "後継者に指定"}</button>`
+          : `<span class="muted" style="font-size:10px">18歳で後継指定可</span>`;
+        const hireBtn = adult && !employed ? `<button class="mini" data-hirefam="${cid}">自社で雇用<br><span class="cost">1AP</span></button>` : (employed ? `<span class="mv up">自社勤務</span>` : "");
+        return `<div class="rcard ${isSucc ? "succ-card" : ""}">
+          <div class="rc-head"><b>${adult ? "🧑" : "👶"} ${c.name}${isSucc ? " ★後継者" : ""}</b> <span class="muted">${c.sex === "female" ? "女" : "男"} / ${c.age.toFixed(1)}歳</span></div>
           <div class="rc-tiers"><span>CA ${c.CA} / PA ${c.PA}（後継者候補）</span><span>教育Lv ${edu}</span></div>
-          <div class="rc-mv"><button class="mini offer" data-educate="${cid}">教育する<br><span class="cost">1AP / $${fmt(3000)}</span></button></div>
+          <div class="rc-mv">${c.age < 25 ? `<button class="mini offer" data-educate="${cid}">教育<br><span class="cost">1AP/$${fmt(3000)}</span></button>` : ""}${succBtn}${hireBtn}</div>
         </div>`;
       }).join("")
     : `<div class="muted">子はまだいません。</div>`;
+
+  // --- 兄弟姉妹（世代交代後・§10）：動向＋直接雇用 ---
+  const siblingsHtml = (info.siblingIds ?? []).map((sid) => {
+    const b = state.people[sid];
+    if (!b) return "";
+    const employed = state.employeeIds.includes(sid);
+    const adult = b.age >= 18;
+    return `<div class="rcard">
+      <div class="rc-head"><b>👨‍👩‍👧 ${b.name}</b> <span class="muted">${b.sex === "female" ? "女" : "男"} / ${b.age.toFixed(1)}歳・${JOB_LABEL[b.jobCategory]}</span></div>
+      <div class="rc-tiers"><span>CA ${b.CA} / PA ${b.PA}</span></div>
+      <div class="rc-mv">${employed ? `<span class="mv up">自社勤務</span>` : (adult ? `<button class="mini" data-hirefam="${sid}">自社で雇用<br><span class="cost">1AP</span></button>` : `<span class="muted">未成年</span>`)}</div>
+    </div>`;
+  }).join("");
+
+  // --- 引退（後継者の有無で結果を明示） ---
+  const succ = validSuccessor(state);
+  const retireHtml = `<div class="sub-bar">
+      ${succ
+        ? `<span class="mv up">後継者：<b>${succ.name}</b>（第${info.generation + 1}世代へ交代できます）</span>`
+        : `<span class="mv down">有効な後継者がいません（引退＝事業終了になります）</span>`}
+      <button class="${succ ? "primary" : "mini ghost"}" data-retire>引退する</button>
+    </div>`;
 
   // --- 交際中（lover：結婚市場側）＝求婚導線 ---
   const lover = currentLover(state);
@@ -708,9 +742,11 @@ function familyTab(): string {
       ${spouseHtml}
     </section>
     <section class="panel">
-      <h2>子供（後継者候補）<span class="legend">教育で成長を加速（§9.4）。将来の世代交代の土台。姓はあなたを継ぐ。</span></h2>
+      <h2>子供（後継者候補）<span class="legend">能力は常時可視。18歳以上は後継者に指定・自社で直接雇用（評判ゲート/リクルート不要）。姓はあなたを継ぐ。</span></h2>
       <div class="rgrid">${childrenHtml}</div>
+      ${retireHtml}
     </section>
+    ${siblingsHtml ? `<section class="panel"><h2>兄弟姉妹<span class="legend">世代交代で一族に。18歳以上は評判ゲート不要で直接雇用できる。</span></h2><div class="rgrid">${siblingsHtml}</div></section>` : ""}
     ${loversHtml ? `<section class="panel"><h2>交際中</h2><div class="rgrid">${loversHtml}</div></section>` : ""}
     ${info.spouseId ? "" : `<section class="panel">
       <h2>結婚市場（独身の候補・評判が近い順）<span class="legend">評判は未調査だと概略のみ。身辺調査で正確な評判・能力(CA/PA)を開示（見合い＝DD）。血族は対象外（§9.3.3）。</span></h2>
@@ -1215,6 +1251,22 @@ function render(): void {
   );
   app.querySelectorAll<HTMLInputElement>("[data-trychild]").forEach((el) =>
     el.addEventListener("change", () => apply(setTryForChild(state, el.checked)))
+  );
+  // 世代交代（v0.18）：後継者指定・家族雇用・引退
+  app.querySelectorAll<HTMLButtonElement>("[data-designate]").forEach((b) =>
+    b.addEventListener("click", () => apply(designateSuccessor(state, b.dataset.designate!)))
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-hirefam]").forEach((b) =>
+    b.addEventListener("click", () => apply(hireFamily(state, b.dataset.hirefam!)))
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-retire]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const succ = validSuccessor(state);
+      const msg = succ
+        ? `${succ.name} へ世代交代して引退します。よろしいですか？`
+        : `有効な後継者がいません。引退すると事業は終了（ゲームオーバー）します。よろしいですか？`;
+      if (window.confirm(msg)) apply(retire(state));
+    })
   );
   // 採用市場：職種フィルタ・並べ替え・ページング（v0.11）
   app.querySelectorAll<HTMLSelectElement>("[data-rjob]").forEach((sel) =>
