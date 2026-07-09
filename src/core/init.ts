@@ -174,6 +174,8 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
       lifestyleFactor: 1.0,
       generation: 1,
       bloodlineId,
+      successorId: null, // 後継者未指名（v0.18）
+      siblingIds: [],    // 初代は兄弟姉妹なし
     },
     pregnancy: null,
     childEducation: {},

@@ -121,6 +121,8 @@ export interface ProtoPC {
   lifestyleFactor: number; // ライフスタイル係数 0.7〜3.0（§12.5）
   generation: number;      // 何代目か（§10）
   bloodlineId: Id;         // PC一族の血統ID（血族婚判定・§9.3.3）
+  successorId: Id | null;  // 指名した後継者（18歳以上の実子・§10.2・v0.18）
+  siblingIds: Id[];        // 兄弟姉妹（世代交代で前PCの他の子が移行・v0.18）
 }
 
 /** 妊娠状態（v0.13・§9.3）。dueTurn 到達で 0歳児を生成。 */

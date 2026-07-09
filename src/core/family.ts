@@ -243,6 +243,114 @@ export function buildChild(
   return child;
 }
 
+/* ============================================================
+ * v0.18：世代交代（引退・後継・死亡・兄弟姉妹）
+ * ============================================================ */
+
+export const SUCCESSION_MIN_AGE = 18; // 後継者指定・家族雇用の下限年齢（成人）
+
+/** 有効な後継者（successorId が 18歳以上・存命の実子）を返す。無ければ null。 */
+export function validSuccessor(state: ProtoGameState): Person | null {
+  const id = state.pc.successorId;
+  if (!id) return null;
+  const p = state.people[id];
+  if (!p) return null;
+  if (!state.pc.childrenIds.includes(id)) return null;
+  if (p.age < SUCCESSION_MIN_AGE) return null;
+  return p;
+}
+
+/** 家族として直接雇用できる人物か（18歳以上の実子 or 兄弟姉妹・未雇用・存命）。 */
+export function isHireableFamily(state: ProtoGameState, personId: string): boolean {
+  const p = state.people[personId];
+  if (!p) return false;
+  if (state.employeeIds.includes(personId)) return false;
+  if (p.age < SUCCESSION_MIN_AGE) return false;
+  return state.pc.childrenIds.includes(personId) || state.pc.siblingIds.includes(personId);
+}
+
+/** 家族メンバー（実子・兄弟姉妹）か。UIの常時可視（フォグ対象外）に使う。 */
+export function isFamilyMember(state: ProtoGameState, personId: string): boolean {
+  return state.pc.childrenIds.includes(personId) || state.pc.siblingIds.includes(personId) || personId === state.pc.spouseId;
+}
+
+/**
+ * 世代交代（succeed・§10）。指定後継者を新PCにし、generation++・wealth相続・会社継続。
+ *  前PCの他の子＝新PCの兄弟姉妹(relative)、前PCは故人(peopleから除外)。新PCは独身スタート。
+ *  ※ 呼び出し側で validSuccessor 済みを前提。
+ */
+export function succeed(state: ProtoGameState): { state: ProtoGameState; events: string[]; heir: Person } {
+  const oldPcId = state.pc.personId;
+  const heirId = state.pc.successorId!;
+  const heir = state.people[heirId];
+  const events: string[] = [];
+
+  const people = { ...state.people };
+  // 前PCは故人（people から除外）
+  delete people[oldPcId];
+  // 前PCの他の子 → 新PCの兄弟姉妹（relative）。既存の兄弟姉妹も引き継ぐ。
+  const newSiblings = state.pc.childrenIds.filter((id) => id !== heirId && people[id]);
+  for (const id of newSiblings) {
+    people[id] = { ...people[id], relationToPC: "relative", isSuccessorCandidate: false };
+  }
+  // 新PC本人：主人公化（relationToPC=none・実務役割は解除）
+  people[heirId] = { ...heir, relationToPC: "none", assignedRole: null };
+
+  // 新PCが社員だった場合は employeeIds/assignments から外す（主人公化）
+  const employeeIds = state.employeeIds.filter((id) => id !== heirId);
+  const assignments = { ...state.assignments };
+  delete assignments[heirId];
+
+  // 兄弟姉妹＝前世代の兄弟＋今回の他の子（重複除去・故人除外）
+  const siblingIds = [...state.pc.siblingIds, ...newSiblings].filter((id, i, a) => people[id] && a.indexOf(id) === i);
+
+  const newPc = {
+    personId: heirId,
+    wealth: state.pc.wealth, // 家督（個人資産）を相続
+    rpPersonal: 0,
+    spouseId: null,          // 新PCは独身スタート
+    childrenIds: [],
+    lifestyleFactor: state.pc.lifestyleFactor,
+    generation: state.pc.generation + 1,
+    bloodlineId: state.pc.bloodlineId, // 血統は継続
+    successorId: null,
+    siblingIds,
+  };
+
+  // 結婚市場を新世代向けに再構成（前世代の候補は入れ替わる）。専用rng＝turn乱数と分離。
+  const marriagePool = generateMarriagePool(
+    state.company.foundedCountry, state.era,
+    makePRNG((state.familySeed ^ (newPc.generation * 0x9e3779b1)) >>> 0)
+  );
+
+  const next: ProtoGameState = {
+    ...state,
+    people,
+    employeeIds,
+    assignments,
+    pc: newPc,
+    pregnancy: null,
+    childEducation: {}, // 新世代の教育投資はリセット
+    marriagePool,
+    ap: state.apMax,    // 新PCは標準AP（実務未就任）
+  };
+  events.push(`🎗 世代交代：${heir.name}（第${newPc.generation}世代）が事業を継承しました。会社と個人資産を相続。`);
+  if (siblingIds.length > 0) events.push(`👨‍👩‍👧 ${siblingIds.length}人の兄弟姉妹が一族に。家族タブから直接雇用できます。`);
+  return { state: next, events, heir };
+}
+
+/** 世代交代 or 事業終了を解決する（死亡・引退の共通処理）。 */
+export function resolveSuccessionOrEnd(state: ProtoGameState, deathOrRetireMsg: string): { state: ProtoGameState; events: string[] } {
+  const events: string[] = [deathOrRetireMsg];
+  if (validSuccessor(state)) {
+    const r = succeed(state);
+    events.push(...r.events);
+    return { state: r.state, events };
+  }
+  events.push(`【ゲームオーバー】後継者が不在のため、事業は幕を閉じました。`);
+  return { state: { ...state, gameOver: true, endTurn: state.turn }, events };
+}
+
 /** 家族ステップの戻り値。 */
 export interface FamilyStepResult {
   state: ProtoGameState;
@@ -256,6 +364,16 @@ export interface FamilyStepResult {
 export function stepFamily(state: ProtoGameState, rng: PRNG): FamilyStepResult {
   let s = state;
   const events: string[] = [];
+
+  // --- 0) PC死亡（寿命到達・§10/§11）。決定論：age >= lifeExpectancy で他界 ---
+  //   有効な後継者あり → 世代交代／なし → ゲーム終了。（寿命≒70代＝20Tプレイテストには不到達＝非回帰）
+  {
+    const pc = s.people[s.pc.personId];
+    if (pc && pc.age >= pc.lifeExpectancy) {
+      return resolveSuccessionOrEnd(s, `🕯 創業者 ${pc.name} が天寿を全う（享年${Math.floor(pc.age)}）。`);
+    }
+  }
+
   const people = { ...s.people };
 
   // --- 1) PC個人評判の進行（会社の成功が個人の格を上げる＝進行報酬） ---

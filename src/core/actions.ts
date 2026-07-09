@@ -27,7 +27,11 @@ import { reachablePaMax } from "./talentPool";
 import { clamp } from "./util";
 import { makePRNG } from "./prng";
 import { applyGrowth } from "./growth";
-import { repMatchProbability, isBloodRelated, marriageCandidate, currentLover } from "./family";
+import {
+  repMatchProbability, isBloodRelated, marriageCandidate, currentLover,
+  validSuccessor, succeed, isHireableFamily, SUCCESSION_MIN_AGE,
+} from "./family";
+import { effectiveSalary } from "./salary";
 
 /** アクションの結果。ok=false なら state は元のまま。 */
 export interface ActionResult {
@@ -323,6 +327,62 @@ export function educateChild(state: ProtoGameState, childId: Id): ActionResult {
     },
     ok: true,
     message: `📚 ${child.name} に教育を施しました（教育Lv${edu}）。`,
+  };
+}
+
+/* ============================================================
+ * v0.18：世代交代（後継者指定・引退・家族雇用）
+ * ============================================================ */
+
+/** 後継者を指名/解除する（§10.2）。18歳以上の実子のみ。同じ子を再指定すると解除（トグル）。 */
+export function designateSuccessor(state: ProtoGameState, childId: Id): ActionResult {
+  const c = state.people[childId];
+  if (!c || !state.pc.childrenIds.includes(childId)) return fail(state, "実子ではありません。");
+  if (state.pc.successorId === childId) {
+    return { state: { ...state, pc: { ...state.pc, successorId: null } }, ok: true, message: `${c.name} の後継者指名を解除しました。` };
+  }
+  if (c.age < SUCCESSION_MIN_AGE) return fail(state, `${c.name}は${SUCCESSION_MIN_AGE}歳未満のため後継者に指名できません。`);
+  return { state: { ...state, pc: { ...state.pc, successorId: childId } }, ok: true, message: `後継者に ${c.name} を指名しました。` };
+}
+
+/**
+ * 引退する（§10）。有効な後継者がいれば世代交代、いなければ事業終了（gameOver）。
+ */
+export function retire(state: ProtoGameState): ActionResult {
+  const succ = validSuccessor(state);
+  if (succ) {
+    const r = succeed(state);
+    return { state: { ...r.state, log: [...state.log, ...r.events] }, ok: true, message: `引退：${succ.name}（第${state.pc.generation + 1}世代）へ世代交代しました。` };
+  }
+  const msg = "後継者が不在のため、引退＝事業は継続できず終了となりました。";
+  return {
+    state: { ...state, gameOver: true, endTurn: state.turn, log: [...state.log, `【ゲームオーバー】${msg}`] },
+    ok: true,
+    message: msg,
+  };
+}
+
+/**
+ * 家族の直接雇用（§10）。18歳以上の実子/兄弟姉妹を、評判ゲート・3ターンリクルートをバイパスして即入社。
+ *  給与は現在CAに基づく実効給与（fulltime・1AP）。家族は応じてくれる。
+ */
+export function hireFamily(state: ProtoGameState, personId: Id): ActionResult {
+  const p = state.people[personId];
+  if (!p) return fail(state, "対象が見つかりません。");
+  if (state.employeeIds.includes(personId)) return fail(state, `${p.name}は既に社員です。`);
+  if (!isHireableFamily(state, personId)) return fail(state, `${p.name}は雇用できる家族ではありません（18歳以上の実子/兄弟姉妹のみ）。`);
+  if (state.ap < AP_COST.hire) return fail(state, `APが足りません（必要${AP_COST.hire}AP）。`);
+  const salary = effectiveSalary(p.jobCategory, p.CA, p.attributes.hidden.loyalty, state.company.foundedCountry);
+  const contract: Contract = { type: "fulltime", remainingTurns: 24, equity: 0, salary };
+  return {
+    state: refreshDerived({
+      ...state,
+      ap: state.ap - AP_COST.hire,
+      people: withPerson(state, { ...p, contract, morale: 60 }), // relationToPC(child/relative)は維持＝家族のまま
+      employeeIds: [...state.employeeIds, personId],
+    }),
+    ok: true,
+    message: `家族入社：${p.name}（月給$${salary.toLocaleString()}）。評判ゲート・リクルート不要で即入社。`,
   };
 }
 
