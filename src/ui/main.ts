@@ -35,9 +35,16 @@ import {
   designateSuccessor,
   retire,
   hireFamily,
+  raiseCapital,
+  buyRivalShares,
+  sellRivalShares,
   type ActionResult,
   type MarketChannel,
 } from "../core/actions";
+import {
+  companyValuation, pcShareRatio, founderEquityValue, rivalSharePrice, rivalValuation,
+  holdingMarketValue, holdingUnrealized, portfolioValue, findRival, isRivalTradeable, capitalGainsRate,
+} from "../core/stock";
 import { scoutedView, type ScoutView } from "../core/scout";
 import { aggregateRivals, type RivalView } from "../core/rivals";
 import {
@@ -91,7 +98,7 @@ let toast = ""; // 直近アクションの結果メッセージ
 let selectedPersonId: string | null = null; // 詳細ビュー対象（nullで閉じる）
 
 /** FM風タブ（グローバルHUDは常時表示、内容だけ切り替え）。 */
-type TabId = "overview" | "talent" | "market" | "rivals" | "products" | "research" | "finance" | "career" | "family" | "achievements";
+type TabId = "overview" | "talent" | "market" | "rivals" | "products" | "research" | "finance" | "stock" | "career" | "family" | "achievements";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "概要" },
   { id: "talent", label: "人材" },
@@ -100,6 +107,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "products", label: "製品" },
   { id: "research", label: "研究・青写真" },
   { id: "finance", label: "財務・組織" },
+  { id: "stock", label: "株式" },
   { id: "career", label: "個人" },
   { id: "family", label: "家族" },
   { id: "achievements", label: "実績" },
@@ -755,6 +763,77 @@ function familyTab(): string {
 }
 
 /* ============================================================
+ * 株式タブ（v0.19）：自社キャップテーブル＋増資／他社株ポートフォリオ・売買
+ * ============================================================ */
+function stockTab(): string {
+  const c = state.company;
+  const val = companyValuation(state);
+  const ratio = pcShareRatio(c);
+  const founderEq = founderEquityValue(state);
+  const ct = c.capTable;
+  const holdersRows = ct.holders.length
+    ? ct.holders.map((h) => `<tr><td>${h.name}</td><td>${h.kind === "vc" ? "投資家" : h.kind === "employee" ? "社員" : "他社"}</td><td class="num">${(h.shares / ct.totalShares * 100).toFixed(1)}%</td></tr>`).join("")
+    : "";
+  const majorityWarn = ratio < 0.5 ? `<div class="mv down">⚠ 持株比率が過半数割れ（${(ratio * 100).toFixed(1)}%）。経営権に注意。</div>` : "";
+  const capPanel = `<section class="panel">
+    <h2>自社キャップテーブル<span class="legend">評価額は財務指標から毎ターン算出（年換算売上×4＋CASH＋THxP＋評判）。増資でCASH調達＝持株希薄化。</span></h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">会社評価額</div><div class="v">$${fmt(val)}</div></div>
+      <div class="kpi"><div class="k">PC持株比率</div><div class="v ${ratio < 0.5 ? "danger" : ""}">${(ratio * 100).toFixed(1)}<small class="sub2">%</small></div></div>
+      <div class="kpi"><div class="k">創業者持分価値</div><div class="v">$${fmt(founderEq)}</div></div>
+      <div class="kpi"><div class="k">総発行株式</div><div class="v" style="font-size:14px">${fmt(ct.totalShares)}</div></div>
+    </div>
+    ${majorityWarn}
+    ${holdersRows ? `<table><thead><tr><th>株主</th><th>種別</th><th>比率</th></tr></thead><tbody><tr><td>あなた（創業者）</td><td>PC</td><td class="num">${(ratio * 100).toFixed(1)}%</td></tr>${holdersRows}</tbody></table>` : `<div class="muted">株主はあなた（創業者）のみ（100%）。</div>`}
+    <div class="recruit-ctl">
+      <span class="muted">増資（新株発行で資金調達）：</span>
+      ${[50000, 100000, 250000].map((a) => `<button class="mini" data-raise="${a}">$${fmt(a)} 調達<br><span class="cost">1AP・希薄化</span></button>`).join("")}
+    </div>
+  </section>`;
+
+  // --- ポートフォリオ（保有他社株） ---
+  const heldIds = Object.keys(state.stockHoldings);
+  const portRows = heldIds.map((id) => {
+    const h = state.stockHoldings[id];
+    const r = findRival(state, id);
+    const mv = holdingMarketValue(state, id);
+    const ur = holdingUnrealized(state, id);
+    const name = r ? r.name : "（上場廃止）";
+    return `<tr>
+      <td>${name}</td><td class="num">${fmt(h.shares)}</td>
+      <td class="num">$${fmt(h.costBasis)}</td><td class="num">$${fmt(mv)}</td>
+      <td class="num ${ur >= 0 ? "good" : "danger"}">${ur >= 0 ? "+" : ""}$${fmt(ur)}</td>
+      <td class="acts"><button class="mini" data-sellstock="${id}:${h.shares}">全売却<br><span class="cost">1AP</span></button></td>
+    </tr>`;
+  }).join("");
+  const portPanel = `<section class="panel">
+    <h2>他社株ポートフォリオ<span class="legend">個人資産で売買（会社CASHには非干渉）。価値は各社の成長/衰退に連動。売却益に譲渡益税（${(capitalGainsRate(state) * 100).toFixed(1)}%）。</span></h2>
+    <div class="sub-bar"><span>💰 個人資産 <b>$${fmt(state.pc.wealth)}</b></span><span class="muted">保有株 時価総額 <b>$${fmt(portfolioValue(state))}</b></span></div>
+    ${heldIds.length ? `<table><thead><tr><th>会社</th><th>株数</th><th>取得原価</th><th>時価</th><th>含み損益</th><th>操作</th></tr></thead><tbody>${portRows}</tbody></table>` : `<div class="muted">保有中の他社株はありません。下の一覧から投資できます。</div>`}
+  </section>`;
+
+  // --- 売買可能なライバル（分析済み/参入済み市場のみ・フォグ整合） ---
+  const tradeable: { id: string; name: string; price: number; val: number; market: string }[] = [];
+  for (const m of Object.values(state.markets)) {
+    for (const r of m.nearRivals) {
+      if (isRivalTradeable(state, r.id)) tradeable.push({ id: r.id, name: r.name, price: rivalSharePrice(r), val: rivalValuation(r), market: `${SECTOR_NAME[m.sector]}×${m.country}` });
+    }
+  }
+  tradeable.sort((a, b) => b.val - a.val);
+  const buyRows = tradeable.slice(0, 30).map((t) => `<tr>
+    <td>${t.name} <span class="muted">${t.market}</span></td>
+    <td class="num">$${fmt(t.val)}</td><td class="num">$${t.price.toFixed(1)}</td>
+    <td class="acts"><button class="mini" data-buystock="${t.id}:100">100株<br><span class="cost">1AP</span></button><button class="mini" data-buystock="${t.id}:500">500株<br><span class="cost">1AP</span></button></td>
+  </tr>`).join("");
+  const buyPanel = `<section class="panel">
+    <h2>他社株マーケット<span class="legend">分析済み/参入済み市場のライバルのみ売買可（業績を評価できる＝DD済み）。未分析市場は他企業タブで分析すると開示。</span></h2>
+    ${tradeable.length ? `<table><thead><tr><th>会社（市場）</th><th>時価総額</th><th>株価</th><th>購入</th></tr></thead><tbody>${buyRows}</tbody></table>` : `<div class="muted">売買可能なライバルがいません。市場を分析するか製品を投入すると開示されます。</div>`}
+  </section>`;
+
+  return capPanel + portPanel + buyPanel;
+}
+
+/* ============================================================
  * 他企業（ライバル）タブ（v0.12）：各社カード＋動きログ。フォグ整合。
  * ============================================================ */
 const SCALE_LABEL = ["零細", "小規模", "中堅", "大手", "最大手"];
@@ -1165,6 +1244,7 @@ function tabContent(): string {
     case "products": return productsPanel() + logPanel();
     case "research": return blueprintPanel();
     case "finance": return financeTab();
+    case "stock": return stockTab();
     case "career": return careerTab();
     case "family": return familyTab();
     case "achievements": return achievementsPanel();
@@ -1267,6 +1347,16 @@ function render(): void {
         : `有効な後継者がいません。引退すると事業は終了（ゲームオーバー）します。よろしいですか？`;
       if (window.confirm(msg)) apply(retire(state));
     })
+  );
+  // 株式（v0.19）：増資・他社株の売買
+  app.querySelectorAll<HTMLButtonElement>("[data-raise]").forEach((b) =>
+    b.addEventListener("click", () => apply(raiseCapital(state, Number(b.dataset.raise))))
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-buystock]").forEach((b) =>
+    b.addEventListener("click", () => { const [id, sh] = b.dataset.buystock!.split(":"); apply(buyRivalShares(state, id, Number(sh))); })
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-sellstock]").forEach((b) =>
+    b.addEventListener("click", () => { const [id, sh] = b.dataset.sellstock!.split(":"); apply(sellRivalShares(state, id, Number(sh))); })
   );
   // 採用市場：職種フィルタ・並べ替え・ページング（v0.11）
   app.querySelectorAll<HTMLSelectElement>("[data-rjob]").forEach((sel) =>
