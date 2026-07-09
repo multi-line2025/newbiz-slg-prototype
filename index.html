@@ -282,7 +282,9 @@
       .modal .muted, .muted { color: var(--muted); font-size: 12px; }
       .d-kpis { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; font-size: 13px; }
       .d-note { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
-      .d-list .d-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); }
+      .d-list .d-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); gap: 10px; }
+      .d-list .d-row.link { cursor: pointer; }
+      .d-list .d-row.link:hover { background: var(--panel2); }
       .d-acts { display: flex; gap: 8px; margin-top: 10px; }
       /* 能力バー */
       .ab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }

@@ -14,7 +14,7 @@ import type { ProtoGameState, MarketState } from "../core/state";
 import { employees, poolPeople, productTeam, effectiveApMax, pcWorking, gameYear } from "../core/state";
 import {
   SECTORS25, FOUNDATIONS, SERVICES, techAvailable, serviceStatus, prereqTechsOf,
-  foundationOfTech, techsOfFoundation, foundationNamesWithTechs,
+  foundationOfTech, techsOfFoundation, foundationNamesWithTechs, techById,
   servicesRequiringTech, type Service, type Tech,
 } from "../core/blueprints25";
 import type { PlayableCountry, JobCategory, Role } from "../core/model/types";
@@ -101,6 +101,7 @@ function freshSeed(): number {
 let state: ProtoGameState = initGame({ seed: freshSeed(), country: "US" });
 let toast = ""; // 直近アクションの結果メッセージ
 let selectedPersonId: string | null = null; // 詳細ビュー対象（nullで閉じる）
+let selectedTechNode: string | null = null; // 技術ツリー詳細（"t:ID" or "s:INDEX"・nullで閉じる・v0.22）
 
 /** FM風タブ（グローバルHUDは常時表示、内容だけ切り替え）。 */
 type TabId = "overview" | "talent" | "market" | "rivals" | "products" | "research" | "techtree" | "finance" | "stock" | "career" | "family" | "achievements";
@@ -930,7 +931,77 @@ function wireTreeHover(app: HTMLElement): void {
       edgeEls.forEach((p) => { const on = seen.has(p.getAttribute("data-from")!) && seen.has(p.getAttribute("data-to")!); p.classList.toggle("hl", on); p.classList.toggle("dim", !on); });
     });
     el.addEventListener("mouseleave", clear);
+    // クリックで技術/サービス詳細を開く（基盤ノードは対象外）・v0.22
+    el.addEventListener("click", () => {
+      const id = el.getAttribute("data-id")!;
+      if (id.startsWith("t:") || id.startsWith("s:")) { selectedTechNode = id; render(); }
+    });
   }
+}
+
+/** サービスの状態バッジ（技術/サービス詳細で共用・v0.22）。 */
+function svcStatusBadge(s: Service, year: number): string {
+  const st = serviceStatus(s, year);
+  return st.unlockable ? `<span class="mv up">✅着手可能</span>`
+    : !st.yearReached ? `<span class="mv aggr">⏳${s.gateYear}年（あと${s.gateYear - year}年）</span>`
+    : `<span class="mv down">🔒前提技術${st.missingTechs.length}件不足</span>`;
+}
+
+/** 技術/サービス詳細モーダル（系統図ノードのクリックで開く・v0.22）。 */
+function techTreeModal(): string {
+  if (!selectedTechNode) return "";
+  const year = gameYear(state);
+
+  if (selectedTechNode.startsWith("t:")) {
+    const t = techById(selectedTechNode.slice(2));
+    if (!t) return "";
+    const on = techAvailable(t, year);
+    const found = foundationOfTech(t);
+    const avail = on ? `<span class="mv up">✅ ${t.year}年に解禁済み（可用）</span>` : `<span class="mv aggr">⏳ ${t.year}年に解禁（あと${t.year - year}年）</span>`;
+    const svcs = servicesRequiringTech(t.id).slice().sort((a, b) => a.gateYear - b.gateYear || a.no - b.no);
+    const svcRows = svcs.length
+      ? svcs.map((s) => `<div class="d-row link" data-technode="s:${SERVICES.indexOf(s)}">
+          <span>${s.service.length > 30 ? s.service.slice(0, 30) + "…" : s.service} <span class="muted">${s.sectorName} / ${s.gateYear}年</span></span>
+          <span>${svcStatusBadge(s, year)}</span>
+        </div>`).join("")
+      : `<div class="muted">この技術を前提とするサービスはありません。</div>`;
+    return `<div class="modal-bg" data-close="1">
+      <div class="modal">
+        <div class="modal-head"><div><b>🔧 ${t.name}</b> <span class="muted">技術 / ${t.field}</span></div><button class="mini" data-close="1">✕</button></div>
+        <div class="d-list">
+          <div class="d-row"><span>解禁年</span><span><b>${t.year}年</b></span></div>
+          <div class="d-row"><span>分野 / 所属基盤</span><span>${t.field} ／ 🌱 ${found}</span></div>
+          <div class="d-row"><span>可用状態（${year}年）</span><span>${avail}</span></div>
+        </div>
+        <h3 style="margin:12px 0 6px;font-size:13px">この技術を前提にするサービス（${svcs.length}）<span class="muted" style="font-weight:400">＝クリックで詳細</span></h3>
+        <div class="d-list" style="max-height:40vh;overflow-y:auto">${svcRows}</div>
+      </div>
+    </div>`;
+  }
+
+  // サービス詳細
+  const s = SERVICES[Number(selectedTechNode.slice(2))];
+  if (!s) return "";
+  const prereqs = prereqTechsOf(s);
+  const preRows = prereqs.length
+    ? prereqs.map((t) => { const ok = techAvailable(t, year); return `<div class="d-row link" data-technode="t:${t.id}">
+        <span>🔧 ${t.name} <span class="muted">${t.field}</span></span>
+        <span>${ok ? `<span class="mv up">✅ ${t.year}年 可用</span>` : `<span class="mv aggr">⏳ ${t.year}年（あと${t.year - year}年）</span>`}</span>
+      </div>`; }).join("")
+    : `<div class="muted">前提技術なし。</div>`;
+  return `<div class="modal-bg" data-close="1">
+    <div class="modal">
+      <div class="modal-head"><div><b>📦 ${s.service}</b> <span class="muted">サービス青写真 / ${s.sectorName}</span></div><button class="mini" data-close="1">✕</button></div>
+      <div class="d-list">
+        <div class="d-row"><span>セクター</span><span>${s.sectorName}</span></div>
+        <div class="d-row"><span>解禁年（gateYear）</span><span><b>${s.gateYear}年</b></span></div>
+        <div class="d-row"><span>状態（${year}年）</span><span>${svcStatusBadge(s, year)}</span></div>
+        <div class="d-row"><span>4専門コスト</span><span>eng${s.cost.eng} / des${s.cost.des} / res${s.cost.res} / mgt${s.cost.mgt}（計${s.cost.total}）</span></div>
+      </div>
+      <h3 style="margin:12px 0 6px;font-size:13px">前提技術（${prereqs.length}）<span class="muted" style="font-weight:400">＝クリックで詳細</span></h3>
+      <div class="d-list">${preRows}</div>
+    </div>
+  </div>`;
 }
 
 /* ============================================================
@@ -1432,13 +1503,18 @@ function render(): void {
     ${topBar()}
     <main class="tabview">${tabContent()}</main>
     ${detailModal()}
+    ${techTreeModal()}
     ${gameOverOverlay()}
     ${archetypeModal()}
   `;
 
   // --- タブ切替（アクティブタブはUI状態として保持）---
   app.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((b) =>
-    b.addEventListener("click", () => { activeTab = b.dataset.tab as TabId; render(); })
+    b.addEventListener("click", () => { activeTab = b.dataset.tab as TabId; selectedTechNode = null; render(); })
+  );
+  // --- 技術/サービス詳細（v0.22）：モーダル内リンクで別ノードへ、背景/✕で閉じる ---
+  app.querySelectorAll<HTMLElement>("[data-technode]").forEach((el) =>
+    el.addEventListener("click", () => { selectedTechNode = el.dataset.technode!; render(); })
   );
 
   // --- グローバルボタン ---
@@ -1456,7 +1532,7 @@ function render(): void {
     state = initGame({ seed: freshSeed(), country: "US", archetype });
     choosingArchetype = false;
     toast = archetype === "labor" ? "労働集約で新規開始しました。" : "知識集約で新規開始しました。";
-    selectedPersonId = null; recruitCountry = null; recruitPage = 0; recruitJob = "all"; recruitSort = "stars"; activeTab = "overview"; render();
+    selectedPersonId = null; selectedTechNode = null; recruitCountry = null; recruitPage = 0; recruitJob = "all"; recruitSort = "stars"; activeTab = "overview"; render();
   };
   app.querySelectorAll<HTMLElement>("[data-arch]").forEach((el) =>
     el.addEventListener("click", () => startWith(el.dataset.arch as "labor" | "knowledge"))
@@ -1477,7 +1553,7 @@ function render(): void {
     el.addEventListener("click", () => { selectedPersonId = el.dataset.person!; render(); })
   );
   app.querySelectorAll<HTMLElement>("[data-close]").forEach((el) =>
-    el.addEventListener("click", (e) => { if (e.target === el) { selectedPersonId = null; render(); } })
+    el.addEventListener("click", (e) => { if (e.target === el) { selectedPersonId = null; selectedTechNode = null; render(); } })
   );
 
   // --- 表内の動的ボタン（イベント委譲）---
