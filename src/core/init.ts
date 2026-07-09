@@ -17,12 +17,13 @@ import { generateMarkets, marketId } from "./markets";
 import { snapshotRivals } from "./rivals";
 import { buildPerson } from "./person";
 import { generateMarriagePool } from "./family";
-import { DEFAULT_MISSION_TAGS, WORLD_POOL_SIZE, ORDINARY_PA_MIN, UNSKILLED_PA_MAX, type Archetype } from "./model/constants";
+import { DEFAULT_MISSION_TAGS, WORLD_POOL_SIZE, ORDINARY_PA_MIN, UNSKILLED_PA_MAX, DEFAULT_START_YEAR, type Archetype } from "./model/constants";
 
 export interface InitOptions {
   seed?: number;
   country?: PlayableCountry;
   era?: Era;
+  startYear?: number; // ゲーム開始年（既定1980・v0.20）
   startingCash?: number;
   hireCount?: number; // 初期採用人数
   poolSize?: number; // 候補プール生成試行数
@@ -153,6 +154,7 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
 
   const state: ProtoGameState = {
     turn: 1,
+    startYear: opts.startYear ?? DEFAULT_START_YEAR, // ゲーム内年の起点（既定1980・v0.20）
     archetype,
     era,
     startEra: era,

@@ -11,7 +11,11 @@
 import { initGame } from "../core/init";
 import { advanceTurn } from "../core/turn";
 import type { ProtoGameState, MarketState } from "../core/state";
-import { employees, poolPeople, productTeam, effectiveApMax, pcWorking } from "../core/state";
+import { employees, poolPeople, productTeam, effectiveApMax, pcWorking, gameYear } from "../core/state";
+import {
+  SECTORS25, FOUNDATIONS, SERVICES, techAvailable, serviceStatus, prereqTechsOf,
+  sectorProfile, type Service,
+} from "../core/blueprints25";
 import type { PlayableCountry, JobCategory, Role } from "../core/model/types";
 import {
   scoutCandidate,
@@ -98,7 +102,7 @@ let toast = ""; // 直近アクションの結果メッセージ
 let selectedPersonId: string | null = null; // 詳細ビュー対象（nullで閉じる）
 
 /** FM風タブ（グローバルHUDは常時表示、内容だけ切り替え）。 */
-type TabId = "overview" | "talent" | "market" | "rivals" | "products" | "research" | "finance" | "stock" | "career" | "family" | "achievements";
+type TabId = "overview" | "talent" | "market" | "rivals" | "products" | "research" | "techtree" | "finance" | "stock" | "career" | "family" | "achievements";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "概要" },
   { id: "talent", label: "人材" },
@@ -106,6 +110,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "rivals", label: "他企業" },
   { id: "products", label: "製品" },
   { id: "research", label: "研究・青写真" },
+  { id: "techtree", label: "技術ツリー" },
   { id: "finance", label: "財務・組織" },
   { id: "stock", label: "株式" },
   { id: "career", label: "個人" },
@@ -124,6 +129,11 @@ let recruitSort: RecruitSort = "stars";
 let recruitJob: JobCategory | "all" = "all";
 let recruitPage = 0;
 const RECRUIT_PAGE_SIZE = 20; // 1ページ描画数（500人でも軽い）
+// 技術ツリー（v0.20）：セクター/状態フィルタ・ページ
+let techSector = "all";
+let techStatusFilter: "all" | "unlockable" | "locked" = "all";
+let techPage = 0;
+const TECH_PAGE_SIZE = 24;
 
 /** その人物が現在“見える”か（社員/家族＝常に可視／候補＝その国のサブスク加入時のみ）。 */
 function isVisible(p: { id: string; nationality: string }): boolean {
@@ -763,6 +773,89 @@ function familyTab(): string {
 }
 
 /* ============================================================
+ * 技術ツリータブ（v0.20 PhaseA）：基盤技術9→技術87→サービス124の依存と解禁状態
+ *   ※ 表示＋可否判定のみ（経済非干渉）。25セクター経済化はPhaseB。
+ * ============================================================ */
+function techTreeTab(): string {
+  const year = gameYear(state);
+
+  // 基盤技術9（根）：波及先(spread)で「どの基盤がどのサービス群を開くか」を直感表示
+  const rootsHtml = FOUNDATIONS.map((f) => `<div class="rcard">
+      <div class="rc-head"><b>🌱 ${f.name}</b></div>
+      <div class="rc-tiers"><span>波及先：${f.spread}</span></div>
+      <div class="muted" style="font-size:11px">${f.note}</div>
+    </div>`).join("");
+
+  // サービス青写真：フィルタ→状態評価→ページング
+  let list = SERVICES.slice();
+  if (techSector !== "all") list = list.filter((s) => s.sectorName === techSector);
+  if (techStatusFilter !== "all") {
+    list = list.filter((s) => serviceStatus(s, year).unlockable === (techStatusFilter === "unlockable"));
+  }
+  list.sort((a, b) => a.gateYear - b.gateYear || a.no - b.no);
+  const total = list.length;
+  const pages = Math.max(1, Math.ceil(total / TECH_PAGE_SIZE));
+  const page = Math.min(techPage, pages - 1);
+  const view = list.slice(page * TECH_PAGE_SIZE, page * TECH_PAGE_SIZE + TECH_PAGE_SIZE);
+
+  const cards = view.map((s) => serviceCard(s, year)).join("");
+
+  const sectorOpts = [`<option value="all"${techSector === "all" ? " selected" : ""}>全セクター(25)</option>`]
+    .concat(SECTORS25.map((sec) => `<option value="${sec.name}"${techSector === sec.name ? " selected" : ""}>${sec.no}. ${sec.name}（${sec.category}）</option>`)).join("");
+  const statusOpts = ([["all", "全状態"], ["unlockable", "着手可能のみ"], ["locked", "未解禁のみ"]] as [string, string][])
+    .map(([v, l]) => `<option value="${v}"${techStatusFilter === v ? " selected" : ""}>${l}</option>`).join("");
+
+  const unlockableCount = SERVICES.filter((s) => serviceStatus(s, year).unlockable).length;
+
+  return `
+    <section class="panel">
+      <h2>技術ツリー（${year}年）<span class="legend">Excel v0.4 準拠・25セクター/9基盤/87技術/124サービス。年が進むと技術が解禁され、サービス青写真の着手条件が満たされる（PhaseA＝表示・可否のみ）。</span></h2>
+      <div class="sub-bar"><span>現在 <b>${year}年</b></span><span class="muted">着手可能サービス <b>${unlockableCount}</b> / ${SERVICES.length}（年進行で増加）</span></div>
+    </section>
+    <section class="panel">
+      <h2>基盤技術（9・ツリーの根）<span class="legend">各基盤が波及して多数のサービスを開く。半導体・電池・通信・クラウド・AI 等。</span></h2>
+      <div class="rgrid">${rootsHtml}</div>
+    </section>
+    <section class="panel">
+      <h2>サービス青写真（124）<span class="legend">前提技術が全て解禁 かつ 解禁年に到達で「着手可能」。4専門(eng/des/res/mgt)コストは開発投入目標。</span></h2>
+      <div class="recruit-ctl">
+        <label>セクター <select data-techsector>${sectorOpts}</select></label>
+        <label>状態 <select data-techstatus>${statusOpts}</select></label>
+        <div class="pager">
+          <button class="mini" data-techpage="prev" ${page <= 0 ? "disabled" : ""}>‹ 前</button>
+          <span class="muted">${total ? page * TECH_PAGE_SIZE + 1 : 0}–${Math.min(total, (page + 1) * TECH_PAGE_SIZE)} / 全${total}（${page + 1}/${pages}）</span>
+          <button class="mini" data-techpage="next" ${page >= pages - 1 ? "disabled" : ""}>次 ›</button>
+        </div>
+      </div>
+      <div class="rgrid">${cards || `<div class="muted">条件に合うサービスがありません。</div>`}</div>
+    </section>`;
+}
+
+/** サービス青写真1枚のカード（解禁状態＋前提技術＋4専門コスト）。 */
+function serviceCard(s: Service, year: number): string {
+  const st = serviceStatus(s, year);
+  const badge = st.unlockable
+    ? `<span class="mv up">✅ 着手可能</span>`
+    : !st.yearReached
+      ? `<span class="mv aggr">⏳ ${s.gateYear}年解禁（あと${s.gateYear - year}年）</span>`
+      : `<span class="mv down">🔒 前提技術 ${st.missingTechs.length}件 不足</span>`;
+  const prereqs = prereqTechsOf(s).map((t) => {
+    const ok = techAvailable(t, year);
+    return `<span class="${ok ? "mv up" : "blur"}" style="font-size:10px">${t.name}${ok ? "" : `(${t.year})`}</span>`;
+  }).join(" ");
+  const prof = sectorProfile(s.sectorName);
+  return `<div class="rcard ${st.unlockable ? "succ-card" : ""}">
+    <div class="rc-head"><b>${s.service.length > 22 ? s.service.slice(0, 22) + "…" : s.service}</b></div>
+    <div class="rc-tiers">
+      <span class="muted">${s.sectorName}${prof ? `（${prof.tendency.slice(0, 10)}）` : ""}</span>
+      ${badge}
+    </div>
+    <div class="rc-tiers"><span style="font-size:10px">前提技術：${prereqs || "なし"}</span></div>
+    <div class="rc-tiers"><span style="font-size:10px">コスト eng${s.cost.eng}/des${s.cost.des}/res${s.cost.res}/mgt${s.cost.mgt}（計${s.cost.total}）</span></div>
+  </div>`;
+}
+
+/* ============================================================
  * 株式タブ（v0.19）：自社キャップテーブル＋増資／他社株ポートフォリオ・売買
  * ============================================================ */
 function stockTab(): string {
@@ -984,7 +1077,7 @@ function topBar(): string {
   return `<div class="topbar">
     <div class="tb-brand">
       <div class="tb-co">${c.name}</div>
-      <div class="tb-sub">${COUNTRY_LABEL[c.foundedCountry]} / ${ERA_LABEL[state.era]} / T${state.turn}</div>
+      <div class="tb-sub">${COUNTRY_LABEL[c.foundedCountry]} / <b>${gameYear(state)}年</b> / ${ERA_LABEL[state.era]} / T${state.turn}</div>
     </div>
     <div class="tb-stats">
       <div class="tb-stat"><span class="k">CASH</span><span class="v">$${fmt(c.CASH)}</span></div>
@@ -1243,6 +1336,7 @@ function tabContent(): string {
     case "rivals": return rivalsTab();
     case "products": return productsPanel() + logPanel();
     case "research": return blueprintPanel();
+    case "techtree": return techTreeTab();
     case "finance": return financeTab();
     case "stock": return stockTab();
     case "career": return careerTab();
@@ -1367,6 +1461,16 @@ function render(): void {
   );
   app.querySelectorAll<HTMLButtonElement>("[data-rpage]").forEach((b) =>
     b.addEventListener("click", () => { recruitPage += b.dataset.rpage === "next" ? 1 : -1; if (recruitPage < 0) recruitPage = 0; render(); })
+  );
+  // 技術ツリー（v0.20）：セクター/状態フィルタ・ページング
+  app.querySelectorAll<HTMLSelectElement>("[data-techsector]").forEach((sel) =>
+    sel.addEventListener("change", () => { techSector = sel.value; techPage = 0; render(); })
+  );
+  app.querySelectorAll<HTMLSelectElement>("[data-techstatus]").forEach((sel) =>
+    sel.addEventListener("change", () => { techStatusFilter = sel.value as typeof techStatusFilter; techPage = 0; render(); })
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-techpage]").forEach((b) =>
+    b.addEventListener("click", () => { techPage += b.dataset.techpage === "next" ? 1 : -1; if (techPage < 0) techPage = 0; render(); })
   );
   // --- 国別スカウトサブスク（v0.10）：タブ切替・加入・解約 ---
   app.querySelectorAll<HTMLButtonElement>("[data-rctry]").forEach((b) =>

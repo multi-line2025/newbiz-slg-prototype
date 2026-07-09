@@ -10,7 +10,7 @@
 
 import type { Person, Id, Era, PlayableCountry } from "./model/types";
 import type { Sector, Archetype } from "./model/constants";
-import { PC_WORK_AP_PENALTY } from "./model/constants";
+import { PC_WORK_AP_PENALTY, TURNS_PER_YEAR } from "./model/constants";
 
 /**
  * プロトタイプ用の会社リソース。
@@ -157,6 +157,7 @@ export interface Pregnancy {
 /** プロトタイプの全体状態。 */
 export interface ProtoGameState {
   turn: number; // 現在ターン（1ターン=1ヶ月）
+  startYear: number; // ゲーム開始年（既定1980・Excelタイムライン起点・v0.20）
   archetype: Archetype; // 業態（knowledge=知識集約／labor=労働集約・v0.8）。開始時に確定
   era: Era; // 現在Era（turnとstartEraから毎ターン更新・§7.1）
   startEra: Era; // 開始Era（Era進行の基準）
@@ -235,4 +236,9 @@ export function effectiveApMax(s: ProtoGameState): number {
 /** 候補プールの Person 配列を取り出す。 */
 export function poolPeople(s: ProtoGameState): Person[] {
   return s.poolIds.map((id) => s.people[id]).filter(Boolean);
+}
+
+/** ゲーム内の現在年（v0.20）。1ターン=1ヶ月・12ターン/年。turn1＝startYear。 */
+export function gameYear(s: ProtoGameState): number {
+  return s.startYear + Math.floor((s.turn - 1) / TURNS_PER_YEAR);
 }

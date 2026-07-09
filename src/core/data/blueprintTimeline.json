@@ -1,0 +1,3321 @@
+{
+ "source": "2026-07-08_ゲーム青写真リスト_v0.4.xlsx",
+ "meta": {
+  "sectors": 25,
+  "foundations": 9,
+  "techs": 87,
+  "services": 124
+ },
+ "sectors": [
+  {
+   "no": 1,
+   "name": "パーソナルコンピュータ",
+   "category": "ハード",
+   "count": 7
+  },
+  {
+   "no": 2,
+   "name": "家庭用ゲーム機・ゲーム",
+   "category": "エンタメ",
+   "count": 7
+  },
+  {
+   "no": 3,
+   "name": "携帯電話・スマートフォン",
+   "category": "ハード",
+   "count": 5
+  },
+  {
+   "no": 4,
+   "name": "インターネット／Webサービス",
+   "category": "プラットフォーム",
+   "count": 6
+  },
+  {
+   "no": 5,
+   "name": "ソフトウェア（OS・業務アプリ）",
+   "category": "ソフト",
+   "count": 6
+  },
+  {
+   "no": 6,
+   "name": "半導体・クラウド・AI",
+   "category": "インフラ/先端",
+   "count": 5
+  },
+  {
+   "no": 7,
+   "name": "家電・AV機器",
+   "category": "消費財",
+   "count": 5
+  },
+  {
+   "no": 8,
+   "name": "自動車・モビリティ",
+   "category": "重工業",
+   "count": 5
+  },
+  {
+   "no": 9,
+   "name": "通信・ネットワークインフラ",
+   "category": "インフラ",
+   "count": 5
+  },
+  {
+   "no": 10,
+   "name": "SNS・メディアプラットフォーム",
+   "category": "プラットフォーム",
+   "count": 5
+  },
+  {
+   "no": 11,
+   "name": "Eコマース・小売",
+   "category": "流通",
+   "count": 4
+  },
+  {
+   "no": 12,
+   "name": "金融・フィンテック",
+   "category": "サービス",
+   "count": 5
+  },
+  {
+   "no": 13,
+   "name": "音楽・映像配信",
+   "category": "エンタメ",
+   "count": 4
+  },
+  {
+   "no": 14,
+   "name": "カメラ・映像機器",
+   "category": "ハード",
+   "count": 5
+  },
+  {
+   "no": 15,
+   "name": "医薬・ヘルスケア・バイオ",
+   "category": "先端",
+   "count": 5
+  },
+  {
+   "no": 16,
+   "name": "食品・飲料・外食",
+   "category": "消費財",
+   "count": 5
+  },
+  {
+   "no": 17,
+   "name": "アパレル・ファッション",
+   "category": "消費財",
+   "count": 4
+  },
+  {
+   "no": 18,
+   "name": "玩具・ホビー",
+   "category": "エンタメ",
+   "count": 4
+  },
+  {
+   "no": 19,
+   "name": "航空・宇宙",
+   "category": "重工業/フロンティア",
+   "count": 5
+  },
+  {
+   "no": 20,
+   "name": "エネルギー・環境（再エネ/電池）",
+   "category": "インフラ",
+   "count": 5
+  },
+  {
+   "no": 21,
+   "name": "産業機械・ロボティクス",
+   "category": "B2B製造",
+   "count": 5
+  },
+  {
+   "no": 22,
+   "name": "広告・マーケティング",
+   "category": "サービス",
+   "count": 4
+  },
+  {
+   "no": 23,
+   "name": "教育・EdTech",
+   "category": "サービス",
+   "count": 4
+  },
+  {
+   "no": 24,
+   "name": "交通・シェアリング",
+   "category": "プラットフォーム",
+   "count": 4
+  },
+  {
+   "no": 25,
+   "name": "検索・生成AIサービス",
+   "category": "先端ソフト",
+   "count": 5
+  }
+ ],
+ "foundations": [
+  {
+   "name": "半導体・微細化",
+   "spread": "PC / ゲーム機 / スマホ / AI ほぼ全て",
+   "note": "研究ツリーの最上位の根。全ハード・演算の前提"
+  },
+  {
+   "name": "電池（リチウムイオン）",
+   "spread": "ノートPC / EV / スマホ / 蓄電 / モビリティ",
+   "note": "1991年商用化。携帯性・電動化の要"
+  },
+  {
+   "name": "ディスプレイ（液晶/有機EL）",
+   "spread": "PC / スマホ / TV / 玩具",
+   "note": "薄型化・携帯化・可視化の前提"
+  },
+  {
+   "name": "通信網（2G→5G）",
+   "spread": "スマホ / SNS / 配車 / IoT / 配信",
+   "note": "世代が上がるとモバイルサービスが解禁"
+  },
+  {
+   "name": "クラウド／データセンター",
+   "spread": "SaaS / 配信 / AI / EC / SNS",
+   "note": "2006年以降。集約型サービスの土台"
+  },
+  {
+   "name": "各種センサー",
+   "spread": "自動運転 / ロボット / 体感ゲーム / カメラ",
+   "note": "現実認識・入力の前提"
+  },
+  {
+   "name": "動画圧縮・広帯域",
+   "spread": "動画共有 / 映像配信 / オンライン授業",
+   "note": "大容量コンテンツ配信の前提"
+  },
+  {
+   "name": "暗号・決済ネットワーク",
+   "spread": "フィンテック / EC / 個人間送金",
+   "note": "安全な取引の前提"
+  },
+  {
+   "name": "深層学習・大規模計算",
+   "spread": "生成AI / 音声アシスタント / レコメンド",
+   "note": "2016年以降のAIサービス群の前提"
+  }
+ ],
+ "techs": [
+  {
+   "id": "DRAM",
+   "name": "半導体メモリ(DRAM)",
+   "year": 1975,
+   "field": "半導体"
+  },
+  {
+   "id": "MPU",
+   "name": "マイクロプロセッサ",
+   "year": 1975,
+   "field": "半導体"
+  },
+  {
+   "id": "GENE",
+   "name": "遺伝子組換え",
+   "year": 1980,
+   "field": "バイオ"
+  },
+  {
+   "id": "MAGREC",
+   "name": "磁気記録",
+   "year": 1980,
+   "field": "記憶"
+  },
+  {
+   "id": "MASSPROD",
+   "name": "量産技術",
+   "year": 1980,
+   "field": "製造"
+  },
+  {
+   "id": "MOLD",
+   "name": "精密成形・機構",
+   "year": 1980,
+   "field": "製造"
+  },
+  {
+   "id": "OS",
+   "name": "汎用OS",
+   "year": 1980,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "RETORT",
+   "name": "レトルト・保存技術",
+   "year": 1980,
+   "field": "製造"
+  },
+  {
+   "id": "ROM",
+   "name": "ROMカートリッジ",
+   "year": 1980,
+   "field": "記憶"
+  },
+  {
+   "id": "SERVO",
+   "name": "サーボ・制御",
+   "year": 1980,
+   "field": "制御"
+  },
+  {
+   "id": "HEAT",
+   "name": "耐熱材",
+   "year": 1981,
+   "field": "素材"
+  },
+  {
+   "id": "ROCKET",
+   "name": "液体燃料ロケット",
+   "year": 1981,
+   "field": "航空宇宙"
+  },
+  {
+   "id": "CDROM",
+   "name": "光ディスク(CD)",
+   "year": 1982,
+   "field": "記憶"
+  },
+  {
+   "id": "BITMAP",
+   "name": "ビットマップ表示",
+   "year": 1983,
+   "field": "表示"
+  },
+  {
+   "id": "CELL",
+   "name": "セルラー通信網",
+   "year": 1983,
+   "field": "通信"
+  },
+  {
+   "id": "GUI",
+   "name": "GUI環境",
+   "year": 1984,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "MOUSE",
+   "name": "マウス入力",
+   "year": 1984,
+   "field": "入力"
+  },
+  {
+   "id": "SPA",
+   "name": "SPA/グローバル供給網",
+   "year": 1984,
+   "field": "製造"
+  },
+  {
+   "id": "DB",
+   "name": "データベース",
+   "year": 1985,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "ECU",
+   "name": "電子制御(ECU)",
+   "year": 1985,
+   "field": "制御"
+  },
+  {
+   "id": "LCD",
+   "name": "液晶ディスプレイ",
+   "year": 1985,
+   "field": "表示"
+  },
+  {
+   "id": "MOLBIO",
+   "name": "分子生物・生化学",
+   "year": 1985,
+   "field": "バイオ"
+  },
+  {
+   "id": "PROC",
+   "name": "微細化プロセス",
+   "year": 1985,
+   "field": "半導体"
+  },
+  {
+   "id": "CCD",
+   "name": "デジタル撮像(CCD)",
+   "year": 1990,
+   "field": "センサー"
+  },
+  {
+   "id": "MATERIAL",
+   "name": "高機能繊維/素材",
+   "year": 1990,
+   "field": "素材"
+  },
+  {
+   "id": "LIB",
+   "name": "リチウムイオン電池",
+   "year": 1991,
+   "field": "電池"
+  },
+  {
+   "id": "TCPIP",
+   "name": "TCP/IP・Web",
+   "year": 1991,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "G2",
+   "name": "2Gデジタル通信",
+   "year": 1993,
+   "field": "通信"
+  },
+  {
+   "id": "MPEGC",
+   "name": "映像圧縮(MPEG)",
+   "year": 1993,
+   "field": "アルゴリズム"
+  },
+  {
+   "id": "LOGI",
+   "name": "物流網・倉庫自動化",
+   "year": 1994,
+   "field": "製造"
+  },
+  {
+   "id": "CRYPTO",
+   "name": "暗号・決済網",
+   "year": 1995,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "FLASH",
+   "name": "フラッシュメモリ",
+   "year": 1995,
+   "field": "記憶"
+  },
+  {
+   "id": "FUNCFOOD",
+   "name": "機能性成分研究",
+   "year": 1995,
+   "field": "製造"
+  },
+  {
+   "id": "MOTOR",
+   "name": "電動モーター・インバータ",
+   "year": 1995,
+   "field": "制御"
+  },
+  {
+   "id": "DVD",
+   "name": "DVD",
+   "year": 1996,
+   "field": "記憶"
+  },
+  {
+   "id": "MP3",
+   "name": "音声圧縮",
+   "year": 1997,
+   "field": "アルゴリズム"
+  },
+  {
+   "id": "CMOS",
+   "name": "CMOSセンサー",
+   "year": 1998,
+   "field": "センサー"
+  },
+  {
+   "id": "ECOM",
+   "name": "EC基盤",
+   "year": 1998,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "FASTFASH",
+   "name": "短サイクル生産",
+   "year": 1998,
+   "field": "製造"
+  },
+  {
+   "id": "SEARCHALGO",
+   "name": "検索アルゴリズム",
+   "year": 1998,
+   "field": "アルゴリズム"
+  },
+  {
+   "id": "SOLAR",
+   "name": "太陽電池セル",
+   "year": 1998,
+   "field": "エネルギー"
+  },
+  {
+   "id": "GPU",
+   "name": "並列演算GPU",
+   "year": 1999,
+   "field": "半導体"
+  },
+  {
+   "id": "HDDS",
+   "name": "小型HDD",
+   "year": 1999,
+   "field": "記憶"
+  },
+  {
+   "id": "SAAS",
+   "name": "SaaS/常時接続基盤",
+   "year": 1999,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "WIFI",
+   "name": "無線LAN/BT",
+   "year": 1999,
+   "field": "通信"
+  },
+  {
+   "id": "BB",
+   "name": "広帯域回線",
+   "year": 2000,
+   "field": "通信"
+  },
+  {
+   "id": "GPS",
+   "name": "GPS(民生)",
+   "year": 2000,
+   "field": "通信"
+  },
+  {
+   "id": "IMMUNO",
+   "name": "免疫・ウイルス学",
+   "year": 2000,
+   "field": "バイオ"
+  },
+  {
+   "id": "SENSOR",
+   "name": "各種センサー",
+   "year": 2000,
+   "field": "センサー"
+  },
+  {
+   "id": "G3",
+   "name": "3Gモバイル",
+   "year": 2001,
+   "field": "通信"
+  },
+  {
+   "id": "WIKI",
+   "name": "共同編集システム",
+   "year": 2001,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "CODEC",
+   "name": "動画圧縮",
+   "year": 2003,
+   "field": "アルゴリズム"
+  },
+  {
+   "id": "DRM",
+   "name": "デジタル著作権管理",
+   "year": 2003,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "CDN",
+   "name": "CDN",
+   "year": 2004,
+   "field": "通信"
+  },
+  {
+   "id": "ACCEL",
+   "name": "加速度センサー",
+   "year": 2005,
+   "field": "センサー"
+  },
+  {
+   "id": "AJAX",
+   "name": "ブラウザ高機能化",
+   "year": 2005,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "SOC",
+   "name": "省電力SoC",
+   "year": 2005,
+   "field": "半導体"
+  },
+  {
+   "id": "VIRT",
+   "name": "仮想化技術",
+   "year": 2005,
+   "field": "半導体"
+  },
+  {
+   "id": "CLOUD",
+   "name": "クラウド/データセンター",
+   "year": 2006,
+   "field": "通信"
+  },
+  {
+   "id": "OLED",
+   "name": "有機EL",
+   "year": 2007,
+   "field": "表示"
+  },
+  {
+   "id": "SSD",
+   "name": "SSD",
+   "year": 2007,
+   "field": "記憶"
+  },
+  {
+   "id": "TOUCH",
+   "name": "静電容量タッチ",
+   "year": 2007,
+   "field": "入力"
+  },
+  {
+   "id": "BIGLIB",
+   "name": "大容量/高密度電池",
+   "year": 2008,
+   "field": "電池"
+  },
+  {
+   "id": "LMS",
+   "name": "学習管理システム",
+   "year": 2008,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "MATCH",
+   "name": "マッチング/評価システム",
+   "year": 2008,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "BLOCK",
+   "name": "ブロックチェーン",
+   "year": 2009,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "FORCE",
+   "name": "力覚センサー",
+   "year": 2010,
+   "field": "センサー"
+  },
+  {
+   "id": "G4",
+   "name": "4G LTE",
+   "year": 2010,
+   "field": "通信"
+  },
+  {
+   "id": "ROAST",
+   "name": "焙煎・抽出/SCM",
+   "year": 2010,
+   "field": "製造"
+  },
+  {
+   "id": "ASR",
+   "name": "音声認識",
+   "year": 2011,
+   "field": "AI"
+  },
+  {
+   "id": "NFC",
+   "name": "NFC",
+   "year": 2011,
+   "field": "通信"
+  },
+  {
+   "id": "SLAM",
+   "name": "自己位置推定(SLAM)",
+   "year": 2011,
+   "field": "AI"
+  },
+  {
+   "id": "WEBRTC",
+   "name": "リアルタイム通信",
+   "year": 2011,
+   "field": "通信"
+  },
+  {
+   "id": "DL",
+   "name": "深層学習",
+   "year": 2012,
+   "field": "AI"
+  },
+  {
+   "id": "RECO",
+   "name": "レコメンドAI",
+   "year": 2013,
+   "field": "AI"
+  },
+  {
+   "id": "WINDT",
+   "name": "大型風力タービン",
+   "year": 2013,
+   "field": "エネルギー"
+  },
+  {
+   "id": "ARM",
+   "name": "自社設計チップ(ARM)",
+   "year": 2015,
+   "field": "半導体"
+  },
+  {
+   "id": "FERMENT",
+   "name": "培養/植物性たんぱく加工",
+   "year": 2015,
+   "field": "バイオ"
+  },
+  {
+   "id": "LIDAR",
+   "name": "LiDAR",
+   "year": 2015,
+   "field": "センサー"
+  },
+  {
+   "id": "REUSE",
+   "name": "再使用・着陸制御",
+   "year": 2015,
+   "field": "航空宇宙"
+  },
+  {
+   "id": "AICHIP",
+   "name": "AI専用演算チップ",
+   "year": 2016,
+   "field": "半導体"
+  },
+  {
+   "id": "QR",
+   "name": "QRコード決済基盤",
+   "year": 2016,
+   "field": "ソフト基盤"
+  },
+  {
+   "id": "FLEXOLED",
+   "name": "フレキシブル有機EL",
+   "year": 2018,
+   "field": "表示"
+  },
+  {
+   "id": "MRNA",
+   "name": "mRNA/脂質ナノ粒子",
+   "year": 2018,
+   "field": "バイオ"
+  },
+  {
+   "id": "TRANSF",
+   "name": "Transformer/LLM",
+   "year": 2018,
+   "field": "AI"
+  },
+  {
+   "id": "G5",
+   "name": "5G",
+   "year": 2020,
+   "field": "通信"
+  },
+  {
+   "id": "DIFF",
+   "name": "拡散モデル",
+   "year": 2022,
+   "field": "AI"
+  }
+ ],
+ "services": [
+  {
+   "no": 1,
+   "sectorName": "パーソナルコンピュータ",
+   "histYear": 1981,
+   "gateYear": 1980,
+   "slack": 1,
+   "service": "個人が机上で使える汎用計算機（表計算・文書作成）",
+   "prereqTechIds": [
+    "OS",
+    "MPU",
+    "DRAM"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 2000,
+    "res": 1000,
+    "mgt": 1500,
+    "total": 7500
+   }
+  },
+  {
+   "no": 1,
+   "sectorName": "パーソナルコンピュータ",
+   "histYear": 1984,
+   "gateYear": 1984,
+   "slack": 0,
+   "service": "マウスとアイコンで直感的に操作できる環境",
+   "prereqTechIds": [
+    "GUI",
+    "MOUSE",
+    "BITMAP"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 2000,
+    "res": 1000,
+    "mgt": 1500,
+    "total": 7500
+   }
+  },
+  {
+   "no": 1,
+   "sectorName": "パーソナルコンピュータ",
+   "histYear": 1989,
+   "gateYear": 1985,
+   "slack": 4,
+   "service": "屋外へ持ち運べる携帯型の計算機（ノート型）",
+   "prereqTechIds": [
+    "LCD",
+    "MASSPROD"
+   ],
+   "cost": {
+    "eng": 4500,
+    "des": 2500,
+    "res": 2000,
+    "mgt": 2000,
+    "total": 11000
+   }
+  },
+  {
+   "no": 1,
+   "sectorName": "パーソナルコンピュータ",
+   "histYear": 1998,
+   "gateYear": 1991,
+   "slack": 7,
+   "service": "ネット接続を前提にした一体型の家庭用機",
+   "prereqTechIds": [
+    "TCPIP",
+    "MASSPROD"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 6000,
+    "res": 4000,
+    "mgt": 5000,
+    "total": 25000
+   }
+  },
+  {
+   "no": 1,
+   "sectorName": "パーソナルコンピュータ",
+   "histYear": 2008,
+   "gateYear": 2007,
+   "slack": 1,
+   "service": "薄型軽量で常時携帯できる作業端末",
+   "prereqTechIds": [
+    "SSD",
+    "SOC",
+    "LIB"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 9500,
+    "res": 6500,
+    "mgt": 8000,
+    "total": 40000
+   }
+  },
+  {
+   "no": 1,
+   "sectorName": "パーソナルコンピュータ",
+   "histYear": 2010,
+   "gateYear": 2007,
+   "slack": 3,
+   "service": "タッチ操作の板型情報端末（タブレット）",
+   "prereqTechIds": [
+    "TOUCH",
+    "SOC"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 9500,
+    "res": 6500,
+    "mgt": 8000,
+    "total": 40000
+   }
+  },
+  {
+   "no": 1,
+   "sectorName": "パーソナルコンピュータ",
+   "histYear": 2020,
+   "gateYear": 2015,
+   "slack": 5,
+   "service": "省電力・高性能な自社設計チップによる長時間駆動",
+   "prereqTechIds": [
+    "ARM"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 14500,
+    "res": 9500,
+    "mgt": 12000,
+    "total": 60000
+   }
+  },
+  {
+   "no": 2,
+   "sectorName": "家庭用ゲーム機・ゲーム",
+   "histYear": 1983,
+   "gateYear": 1983,
+   "slack": 0,
+   "service": "家庭のテレビで遊べる交換式ソフトのゲーム機",
+   "prereqTechIds": [
+    "ROM",
+    "BITMAP"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 2500,
+    "res": 1000,
+    "mgt": 1000,
+    "total": 7500
+   }
+  },
+  {
+   "no": 2,
+   "sectorName": "家庭用ゲーム機・ゲーム",
+   "histYear": 1989,
+   "gateYear": 1985,
+   "slack": 4,
+   "service": "外出先で遊べる携帯型ゲーム",
+   "prereqTechIds": [
+    "LCD",
+    "MOLD"
+   ],
+   "cost": {
+    "eng": 4500,
+    "des": 4000,
+    "res": 1500,
+    "mgt": 2000,
+    "total": 12000
+   }
+  },
+  {
+   "no": 2,
+   "sectorName": "家庭用ゲーム機・ゲーム",
+   "histYear": 1994,
+   "gateYear": 1982,
+   "slack": 12,
+   "service": "立体（3D）映像で遊ぶ据置ゲーム",
+   "prereqTechIds": [
+    "CDROM",
+    "MASSPROD"
+   ],
+   "cost": {
+    "eng": 6500,
+    "des": 6000,
+    "res": 2000,
+    "mgt": 2500,
+    "total": 17000
+   }
+  },
+  {
+   "no": 2,
+   "sectorName": "家庭用ゲーム機・ゲーム",
+   "histYear": 2000,
+   "gateYear": 1999,
+   "slack": 1,
+   "service": "ゲームに加え映像も再生できる家庭娯楽機",
+   "prereqTechIds": [
+    "DVD",
+    "GPU"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 9000,
+    "res": 3000,
+    "mgt": 4000,
+    "total": 26000
+   }
+  },
+  {
+   "no": 2,
+   "sectorName": "家庭用ゲーム機・ゲーム",
+   "histYear": 2006,
+   "gateYear": 2005,
+   "slack": 1,
+   "service": "体を動かして直感的に遊ぶ操作",
+   "prereqTechIds": [
+    "ACCEL",
+    "WIFI"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 14500,
+    "res": 5000,
+    "mgt": 6500,
+    "total": 42000
+   }
+  },
+  {
+   "no": 2,
+   "sectorName": "家庭用ゲーム機・ゲーム",
+   "histYear": 2017,
+   "gateYear": 2005,
+   "slack": 12,
+   "service": "家でも外でも同じソフトを遊べる形態",
+   "prereqTechIds": [
+    "SOC",
+    "FLASH",
+    "WIFI"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 21500,
+    "res": 7000,
+    "mgt": 9500,
+    "total": 62000
+   }
+  },
+  {
+   "no": 2,
+   "sectorName": "家庭用ゲーム機・ゲーム",
+   "histYear": 2020,
+   "gateYear": 2007,
+   "slack": 13,
+   "service": "高精細・高速読み込みの没入体験",
+   "prereqTechIds": [
+    "SSD",
+    "GPU"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 21500,
+    "res": 7000,
+    "mgt": 9500,
+    "total": 62000
+   }
+  },
+  {
+   "no": 3,
+   "sectorName": "携帯電話・スマートフォン",
+   "histYear": 1983,
+   "gateYear": 1983,
+   "slack": 0,
+   "service": "屋外で通話できる持ち運び電話",
+   "prereqTechIds": [
+    "CELL"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 2000,
+    "res": 1000,
+    "mgt": 1500,
+    "total": 7500
+   }
+  },
+  {
+   "no": 3,
+   "sectorName": "携帯電話・スマートフォン",
+   "histYear": 1999,
+   "gateYear": 1993,
+   "slack": 6,
+   "service": "携帯電話でネット・メール・情報閲覧",
+   "prereqTechIds": [
+    "G2",
+    "LCD"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 7000,
+    "res": 4000,
+    "mgt": 5000,
+    "total": 26000
+   }
+  },
+  {
+   "no": 3,
+   "sectorName": "携帯電話・スマートフォン",
+   "histYear": 2007,
+   "gateYear": 2007,
+   "slack": 0,
+   "service": "通話・ネット・アプリを一台に統合したタッチ端末",
+   "prereqTechIds": [
+    "TOUCH",
+    "SOC",
+    "G3"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 11000,
+    "res": 6500,
+    "mgt": 8000,
+    "total": 41500
+   }
+  },
+  {
+   "no": 3,
+   "sectorName": "携帯電話・スマートフォン",
+   "histYear": 2010,
+   "gateYear": 2001,
+   "slack": 9,
+   "service": "高画質カメラ＋アプリ市場を備えた携帯端末",
+   "prereqTechIds": [
+    "CMOS",
+    "G3",
+    "ECOM"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 11000,
+    "res": 6500,
+    "mgt": 8000,
+    "total": 41500
+   }
+  },
+  {
+   "no": 3,
+   "sectorName": "携帯電話・スマートフォン",
+   "histYear": 2019,
+   "gateYear": 2018,
+   "slack": 1,
+   "service": "画面を折りたためる大型化端末",
+   "prereqTechIds": [
+    "FLEXOLED"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 17000,
+    "res": 9500,
+    "mgt": 12000,
+    "total": 62500
+   }
+  },
+  {
+   "no": 4,
+   "sectorName": "インターネット／Webサービス",
+   "histYear": 1991,
+   "gateYear": 1991,
+   "slack": 0,
+   "service": "世界中の文書を相互リンクで閲覧",
+   "prereqTechIds": [
+    "TCPIP"
+   ],
+   "cost": {
+    "eng": 6500,
+    "des": 4000,
+    "res": 2500,
+    "mgt": 3000,
+    "total": 16000
+   }
+  },
+  {
+   "no": 4,
+   "sectorName": "インターネット／Webサービス",
+   "histYear": 1994,
+   "gateYear": 1991,
+   "slack": 3,
+   "service": "ネット上で商品を検索・購入",
+   "prereqTechIds": [
+    "TCPIP",
+    "DB"
+   ],
+   "cost": {
+    "eng": 6500,
+    "des": 4000,
+    "res": 2500,
+    "mgt": 3000,
+    "total": 16000
+   }
+  },
+  {
+   "no": 4,
+   "sectorName": "インターネット／Webサービス",
+   "histYear": 1998,
+   "gateYear": 1998,
+   "slack": 0,
+   "service": "膨大な情報を的確に探し出す検索",
+   "prereqTechIds": [
+    "SEARCHALGO"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 6000,
+    "res": 4000,
+    "mgt": 5000,
+    "total": 25000
+   }
+  },
+  {
+   "no": 4,
+   "sectorName": "インターネット／Webサービス",
+   "histYear": 2001,
+   "gateYear": 2001,
+   "slack": 0,
+   "service": "誰もが編集できる共同百科事典",
+   "prereqTechIds": [
+    "WIKI",
+    "BB"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 8000,
+    "res": 5000,
+    "mgt": 6500,
+    "total": 32500
+   }
+  },
+  {
+   "no": 4,
+   "sectorName": "インターネット／Webサービス",
+   "histYear": 2005,
+   "gateYear": 2003,
+   "slack": 2,
+   "service": "誰でも動画を投稿・共有",
+   "prereqTechIds": [
+    "CODEC",
+    "BB"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 8000,
+    "res": 5000,
+    "mgt": 6500,
+    "total": 32500
+   }
+  },
+  {
+   "no": 4,
+   "sectorName": "インターネット／Webサービス",
+   "histYear": 2020,
+   "gateYear": 2011,
+   "slack": 9,
+   "service": "遠隔で会議・共同作業する仕組み",
+   "prereqTechIds": [
+    "CLOUD",
+    "WEBRTC"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 14500,
+    "res": 9500,
+    "mgt": 12000,
+    "total": 60000
+   }
+  },
+  {
+   "no": 5,
+   "sectorName": "ソフトウェア（OS・業務アプリ）",
+   "histYear": 1985,
+   "gateYear": 1984,
+   "slack": 1,
+   "service": "画面操作を統一する基本ソフト",
+   "prereqTechIds": [
+    "GUI"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 2000,
+    "res": 1000,
+    "mgt": 1500,
+    "total": 7500
+   }
+  },
+  {
+   "no": 5,
+   "sectorName": "ソフトウェア（OS・業務アプリ）",
+   "histYear": 1989,
+   "gateYear": 1984,
+   "slack": 5,
+   "service": "文書・表計算・資料作成の統合パッケージ",
+   "prereqTechIds": [
+    "GUI",
+    "DRAM"
+   ],
+   "cost": {
+    "eng": 4500,
+    "des": 2500,
+    "res": 1500,
+    "mgt": 2000,
+    "total": 10500
+   }
+  },
+  {
+   "no": 5,
+   "sectorName": "ソフトウェア（OS・業務アプリ）",
+   "histYear": 1995,
+   "gateYear": 1991,
+   "slack": 4,
+   "service": "誰でも扱える一般向け基本ソフト",
+   "prereqTechIds": [
+    "OS",
+    "TCPIP"
+   ],
+   "cost": {
+    "eng": 6500,
+    "des": 4000,
+    "res": 2000,
+    "mgt": 3000,
+    "total": 15500
+   }
+  },
+  {
+   "no": 5,
+   "sectorName": "ソフトウェア（OS・業務アプリ）",
+   "histYear": 1999,
+   "gateYear": 1999,
+   "slack": 0,
+   "service": "導入不要でネット越しに使う業務ソフト（SaaS）",
+   "prereqTechIds": [
+    "SAAS",
+    "TCPIP"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 6000,
+    "res": 3000,
+    "mgt": 5000,
+    "total": 24000
+   }
+  },
+  {
+   "no": 5,
+   "sectorName": "ソフトウェア（OS・業務アプリ）",
+   "histYear": 2006,
+   "gateYear": 2006,
+   "slack": 0,
+   "service": "複数人で同時編集する文書作成",
+   "prereqTechIds": [
+    "CLOUD",
+    "AJAX"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 9500,
+    "res": 5000,
+    "mgt": 8000,
+    "total": 38500
+   }
+  },
+  {
+   "no": 5,
+   "sectorName": "ソフトウェア（OS・業務アプリ）",
+   "histYear": 2013,
+   "gateYear": 2006,
+   "slack": 7,
+   "service": "チームの会話・情報を集約する業務連絡",
+   "prereqTechIds": [
+    "CLOUD",
+    "SOC"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 11500,
+    "res": 5500,
+    "mgt": 9500,
+    "total": 45500
+   }
+  },
+  {
+   "no": 6,
+   "sectorName": "半導体・クラウド・AI",
+   "histYear": 1993,
+   "gateYear": 1985,
+   "slack": 8,
+   "service": "高性能な汎用演算チップ",
+   "prereqTechIds": [
+    "PROC"
+   ],
+   "cost": {
+    "eng": 6500,
+    "des": 1500,
+    "res": 4500,
+    "mgt": 2500,
+    "total": 15000
+   }
+  },
+  {
+   "no": 6,
+   "sectorName": "半導体・クラウド・AI",
+   "histYear": 1999,
+   "gateYear": 1999,
+   "slack": 0,
+   "service": "映像・画像処理に特化した並列演算(GPU)",
+   "prereqTechIds": [
+    "GPU"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 2000,
+    "res": 7000,
+    "mgt": 4000,
+    "total": 23000
+   }
+  },
+  {
+   "no": 6,
+   "sectorName": "半導体・クラウド・AI",
+   "histYear": 2006,
+   "gateYear": 2006,
+   "slack": 0,
+   "service": "必要な分だけ借りる計算資源（クラウド）",
+   "prereqTechIds": [
+    "CLOUD",
+    "VIRT"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 3000,
+    "res": 11000,
+    "mgt": 6500,
+    "total": 36500
+   }
+  },
+  {
+   "no": 6,
+   "sectorName": "半導体・クラウド・AI",
+   "histYear": 2016,
+   "gateYear": 2016,
+   "slack": 0,
+   "service": "AI学習に特化した専用演算基盤",
+   "prereqTechIds": [
+    "AICHIP",
+    "DL"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 5000,
+    "res": 17000,
+    "mgt": 9500,
+    "total": 55500
+   }
+  },
+  {
+   "no": 6,
+   "sectorName": "半導体・クラウド・AI",
+   "histYear": 2022,
+   "gateYear": 2018,
+   "slack": 4,
+   "service": "生成AIを支える大規模並列計算",
+   "prereqTechIds": [
+    "TRANSF",
+    "AICHIP"
+   ],
+   "cost": {
+    "eng": 30000,
+    "des": 6000,
+    "res": 21000,
+    "mgt": 12000,
+    "total": 69000
+   }
+  },
+  {
+   "no": 7,
+   "sectorName": "家電・AV機器",
+   "histYear": 1982,
+   "gateYear": 1982,
+   "slack": 0,
+   "service": "劣化しないデジタル音源の再生",
+   "prereqTechIds": [
+    "CDROM"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 2000,
+    "res": 1000,
+    "mgt": 1000,
+    "total": 7000
+   }
+  },
+  {
+   "no": 7,
+   "sectorName": "家電・AV機器",
+   "histYear": 1983,
+   "gateYear": 1980,
+   "slack": 3,
+   "service": "家庭で映像を録画・再生",
+   "prereqTechIds": [
+    "MAGREC"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 2000,
+    "res": 1000,
+    "mgt": 1000,
+    "total": 7000
+   }
+  },
+  {
+   "no": 7,
+   "sectorName": "家電・AV機器",
+   "histYear": 1996,
+   "gateYear": 1996,
+   "slack": 0,
+   "service": "高画質な映像ソフトの再生",
+   "prereqTechIds": [
+    "DVD"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 6000,
+    "res": 3000,
+    "mgt": 4000,
+    "total": 23000
+   }
+  },
+  {
+   "no": 7,
+   "sectorName": "家電・AV機器",
+   "histYear": 2000,
+   "gateYear": 1985,
+   "slack": 15,
+   "service": "薄型・大画面の映像視聴",
+   "prereqTechIds": [
+    "LCD"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 6000,
+    "res": 3000,
+    "mgt": 4000,
+    "total": 23000
+   }
+  },
+  {
+   "no": 7,
+   "sectorName": "家電・AV機器",
+   "histYear": 2018,
+   "gateYear": 2011,
+   "slack": 7,
+   "service": "声で操作する家庭内アシスタント",
+   "prereqTechIds": [
+    "ASR",
+    "CLOUD"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 14500,
+    "res": 7000,
+    "mgt": 9500,
+    "total": 55000
+   }
+  },
+  {
+   "no": 8,
+   "sectorName": "自動車・モビリティ",
+   "histYear": 1989,
+   "gateYear": 1985,
+   "slack": 4,
+   "service": "高品質・高付加価値の乗用車",
+   "prereqTechIds": [
+    "ECU"
+   ],
+   "cost": {
+    "eng": 4500,
+    "des": 2500,
+    "res": 2000,
+    "mgt": 2500,
+    "total": 11500
+   }
+  },
+  {
+   "no": 8,
+   "sectorName": "自動車・モビリティ",
+   "histYear": 1997,
+   "gateYear": 1995,
+   "slack": 2,
+   "service": "燃費を大幅改善する電動併用車（HV）",
+   "prereqTechIds": [
+    "MOTOR",
+    "LIB"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 6000,
+    "res": 5000,
+    "mgt": 6000,
+    "total": 27000
+   }
+  },
+  {
+   "no": 8,
+   "sectorName": "自動車・モビリティ",
+   "histYear": 2010,
+   "gateYear": 2008,
+   "slack": 2,
+   "service": "排ガスを出さない量産電気自動車（EV）",
+   "prereqTechIds": [
+    "BIGLIB",
+    "MOTOR"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 9500,
+    "res": 8000,
+    "mgt": 9500,
+    "total": 43000
+   }
+  },
+  {
+   "no": 8,
+   "sectorName": "自動車・モビリティ",
+   "histYear": 2012,
+   "gateYear": 2008,
+   "slack": 4,
+   "service": "長距離走行できる高性能EV",
+   "prereqTechIds": [
+    "BIGLIB"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 11500,
+    "res": 9500,
+    "mgt": 11500,
+    "total": 51500
+   }
+  },
+  {
+   "no": 8,
+   "sectorName": "自動車・モビリティ",
+   "histYear": 2017,
+   "gateYear": 2015,
+   "slack": 2,
+   "service": "運転支援・自動運転の実用化",
+   "prereqTechIds": [
+    "LIDAR",
+    "DL",
+    "SENSOR"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 14500,
+    "res": 12000,
+    "mgt": 14500,
+    "total": 65000
+   }
+  },
+  {
+   "no": 9,
+   "sectorName": "通信・ネットワークインフラ",
+   "histYear": 1985,
+   "gateYear": 1983,
+   "slack": 2,
+   "service": "移動しながら通話できる通信網",
+   "prereqTechIds": [
+    "CELL"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 500,
+    "res": 1500,
+    "mgt": 2000,
+    "total": 7000
+   }
+  },
+  {
+   "no": 9,
+   "sectorName": "通信・ネットワークインフラ",
+   "histYear": 1993,
+   "gateYear": 1993,
+   "slack": 0,
+   "service": "デジタル化で高品質・多接続の通信",
+   "prereqTechIds": [
+    "G2"
+   ],
+   "cost": {
+    "eng": 6500,
+    "des": 1500,
+    "res": 3000,
+    "mgt": 4000,
+    "total": 15000
+   }
+  },
+  {
+   "no": 9,
+   "sectorName": "通信・ネットワークインフラ",
+   "histYear": 2001,
+   "gateYear": 2001,
+   "slack": 0,
+   "service": "動画も扱える高速モバイル通信（3G）",
+   "prereqTechIds": [
+    "G3"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 2500,
+    "res": 6500,
+    "mgt": 8000,
+    "total": 30000
+   }
+  },
+  {
+   "no": 9,
+   "sectorName": "通信・ネットワークインフラ",
+   "histYear": 2010,
+   "gateYear": 2010,
+   "slack": 0,
+   "service": "大容量・低遅延の通信（4G）",
+   "prereqTechIds": [
+    "G4"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 3000,
+    "res": 8000,
+    "mgt": 9500,
+    "total": 36500
+   }
+  },
+  {
+   "no": 9,
+   "sectorName": "通信・ネットワークインフラ",
+   "histYear": 2020,
+   "gateYear": 2020,
+   "slack": 0,
+   "service": "超高速・多数同時接続の通信（5G）",
+   "prereqTechIds": [
+    "G5"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 5000,
+    "res": 12000,
+    "mgt": 14500,
+    "total": 55500
+   }
+  },
+  {
+   "no": 10,
+   "sectorName": "SNS・メディアプラットフォーム",
+   "histYear": 2004,
+   "gateYear": 2000,
+   "slack": 4,
+   "service": "実名で人とつながる交流網",
+   "prereqTechIds": [
+    "TCPIP",
+    "DB",
+    "BB"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 9000,
+    "res": 6500,
+    "mgt": 9000,
+    "total": 37500
+   }
+  },
+  {
+   "no": 10,
+   "sectorName": "SNS・メディアプラットフォーム",
+   "histYear": 2006,
+   "gateYear": 2001,
+   "slack": 5,
+   "service": "短文で近況を即時共有",
+   "prereqTechIds": [
+    "BB",
+    "G3"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 11000,
+    "res": 8000,
+    "mgt": 11000,
+    "total": 46000
+   }
+  },
+  {
+   "no": 10,
+   "sectorName": "SNS・メディアプラットフォーム",
+   "histYear": 2010,
+   "gateYear": 2006,
+   "slack": 4,
+   "service": "写真中心で共有する交流",
+   "prereqTechIds": [
+    "CMOS",
+    "G3",
+    "CLOUD"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 11000,
+    "res": 8000,
+    "mgt": 11000,
+    "total": 46000
+   }
+  },
+  {
+   "no": 10,
+   "sectorName": "SNS・メディアプラットフォーム",
+   "histYear": 2011,
+   "gateYear": 2005,
+   "slack": 6,
+   "service": "無料で通話・メッセージ",
+   "prereqTechIds": [
+    "G3",
+    "SOC"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 13500,
+    "res": 9500,
+    "mgt": 13500,
+    "total": 55500
+   }
+  },
+  {
+   "no": 10,
+   "sectorName": "SNS・メディアプラットフォーム",
+   "histYear": 2016,
+   "gateYear": 2013,
+   "slack": 3,
+   "service": "短尺動画で楽しむ配信",
+   "prereqTechIds": [
+    "G4",
+    "CODEC",
+    "RECO"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 17000,
+    "res": 12000,
+    "mgt": 17000,
+    "total": 70000
+   }
+  },
+  {
+   "no": 11,
+   "sectorName": "Eコマース・小売",
+   "histYear": 1994,
+   "gateYear": 1994,
+   "slack": 0,
+   "service": "ネットで書籍・物品を注文し宅配",
+   "prereqTechIds": [
+    "TCPIP",
+    "LOGI",
+    "DB"
+   ],
+   "cost": {
+    "eng": 5000,
+    "des": 3000,
+    "res": 2500,
+    "mgt": 6500,
+    "total": 17000
+   }
+  },
+  {
+   "no": 11,
+   "sectorName": "Eコマース・小売",
+   "histYear": 1995,
+   "gateYear": 1995,
+   "slack": 0,
+   "service": "個人間でも売買できる市場",
+   "prereqTechIds": [
+    "CRYPTO",
+    "TCPIP"
+   ],
+   "cost": {
+    "eng": 5000,
+    "des": 3000,
+    "res": 2500,
+    "mgt": 6500,
+    "total": 17000
+   }
+  },
+  {
+   "no": 11,
+   "sectorName": "Eコマース・小売",
+   "histYear": 2005,
+   "gateYear": 2000,
+   "slack": 5,
+   "service": "会費制で送料無料・特典の宅配",
+   "prereqTechIds": [
+    "LOGI",
+    "BB"
+   ],
+   "cost": {
+    "eng": 10500,
+    "des": 6500,
+    "res": 5000,
+    "mgt": 13000,
+    "total": 35000
+   }
+  },
+  {
+   "no": 11,
+   "sectorName": "Eコマース・小売",
+   "histYear": 2013,
+   "gateYear": 2010,
+   "slack": 3,
+   "service": "スマホで手軽に個人売買（フリマ）",
+   "prereqTechIds": [
+    "CMOS",
+    "G4",
+    "ECOM"
+   ],
+   "cost": {
+    "eng": 15000,
+    "des": 9500,
+    "res": 7500,
+    "mgt": 19000,
+    "total": 51000
+   }
+  },
+  {
+   "no": 12,
+   "sectorName": "金融・フィンテック",
+   "histYear": 1999,
+   "gateYear": 1995,
+   "slack": 4,
+   "service": "ネット上で個人間送金・決済",
+   "prereqTechIds": [
+    "CRYPTO",
+    "TCPIP"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 4000,
+    "res": 5000,
+    "mgt": 7000,
+    "total": 26000
+   }
+  },
+  {
+   "no": 12,
+   "sectorName": "金融・フィンテック",
+   "histYear": 2009,
+   "gateYear": 2009,
+   "slack": 0,
+   "service": "中央機関を介さないデジタル通貨",
+   "prereqTechIds": [
+    "BLOCK"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 6500,
+    "res": 8000,
+    "mgt": 11000,
+    "total": 41500
+   }
+  },
+  {
+   "no": 12,
+   "sectorName": "金融・フィンテック",
+   "histYear": 2011,
+   "gateYear": 2005,
+   "slack": 6,
+   "service": "スマホを読み取り機にする対面決済",
+   "prereqTechIds": [
+    "G3",
+    "SOC",
+    "CRYPTO"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 7500,
+    "res": 9500,
+    "mgt": 13500,
+    "total": 49500
+   }
+  },
+  {
+   "no": 12,
+   "sectorName": "金融・フィンテック",
+   "histYear": 2014,
+   "gateYear": 2011,
+   "slack": 3,
+   "service": "スマホをかざす非接触決済",
+   "prereqTechIds": [
+    "NFC"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 7500,
+    "res": 9500,
+    "mgt": 13500,
+    "total": 49500
+   }
+  },
+  {
+   "no": 12,
+   "sectorName": "金融・フィンテック",
+   "histYear": 2016,
+   "gateYear": 2016,
+   "slack": 0,
+   "service": "QRコードで支払う決済",
+   "prereqTechIds": [
+    "QR"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 9500,
+    "res": 12000,
+    "mgt": 17000,
+    "total": 62500
+   }
+  },
+  {
+   "no": 13,
+   "sectorName": "音楽・映像配信",
+   "histYear": 2001,
+   "gateYear": 1999,
+   "slack": 2,
+   "service": "大量の楽曲を携帯して聴く",
+   "prereqTechIds": [
+    "MP3",
+    "HDDS"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 8000,
+    "res": 5000,
+    "mgt": 9000,
+    "total": 35000
+   }
+  },
+  {
+   "no": 13,
+   "sectorName": "音楽・映像配信",
+   "histYear": 2003,
+   "gateYear": 2003,
+   "slack": 0,
+   "service": "一曲単位でネット購入",
+   "prereqTechIds": [
+    "DRM",
+    "CRYPTO"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 8000,
+    "res": 5000,
+    "mgt": 9000,
+    "total": 35000
+   }
+  },
+  {
+   "no": 13,
+   "sectorName": "音楽・映像配信",
+   "histYear": 2007,
+   "gateYear": 2004,
+   "slack": 3,
+   "service": "定額で映像を見放題（ストリーミング）",
+   "prereqTechIds": [
+    "BB",
+    "CDN",
+    "CODEC"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 9500,
+    "res": 6500,
+    "mgt": 11000,
+    "total": 43000
+   }
+  },
+  {
+   "no": 13,
+   "sectorName": "音楽・映像配信",
+   "histYear": 2008,
+   "gateYear": 2006,
+   "slack": 2,
+   "service": "定額で音楽を聴き放題",
+   "prereqTechIds": [
+    "G3",
+    "CLOUD",
+    "CODEC"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 9500,
+    "res": 6500,
+    "mgt": 11000,
+    "total": 43000
+   }
+  },
+  {
+   "no": 14,
+   "sectorName": "カメラ・映像機器",
+   "histYear": 1995,
+   "gateYear": 1995,
+   "slack": 0,
+   "service": "フィルム不要で撮影・確認できるデジタル撮影",
+   "prereqTechIds": [
+    "CCD",
+    "FLASH"
+   ],
+   "cost": {
+    "eng": 6500,
+    "des": 4000,
+    "res": 2500,
+    "mgt": 2500,
+    "total": 15500
+   }
+  },
+  {
+   "no": 14,
+   "sectorName": "カメラ・映像機器",
+   "histYear": 2000,
+   "gateYear": 1998,
+   "slack": 2,
+   "service": "電話で写真を撮り即共有",
+   "prereqTechIds": [
+    "CMOS",
+    "CELL"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 6000,
+    "res": 4000,
+    "mgt": 4000,
+    "total": 24000
+   }
+  },
+  {
+   "no": 14,
+   "sectorName": "カメラ・映像機器",
+   "histYear": 2004,
+   "gateYear": 1998,
+   "slack": 6,
+   "service": "身につけて撮る小型高耐久カメラ",
+   "prereqTechIds": [
+    "CMOS",
+    "MASSPROD"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 8000,
+    "res": 5000,
+    "mgt": 5000,
+    "total": 31000
+   }
+  },
+  {
+   "no": 14,
+   "sectorName": "カメラ・映像機器",
+   "histYear": 2008,
+   "gateYear": 1998,
+   "slack": 10,
+   "service": "一眼画質を小型化（ミラーレス）",
+   "prereqTechIds": [
+    "CMOS",
+    "MOLD"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 9500,
+    "res": 6500,
+    "mgt": 6500,
+    "total": 38500
+   }
+  },
+  {
+   "no": 14,
+   "sectorName": "カメラ・映像機器",
+   "histYear": 2013,
+   "gateYear": 1998,
+   "slack": 15,
+   "service": "高精細（4K）映像の撮影",
+   "prereqTechIds": [
+    "CMOS"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 11500,
+    "res": 7500,
+    "mgt": 7500,
+    "total": 45500
+   }
+  },
+  {
+   "no": 15,
+   "sectorName": "医薬・ヘルスケア・バイオ",
+   "histYear": 1982,
+   "gateYear": 1980,
+   "slack": 2,
+   "service": "遺伝子技術で量産する治療薬",
+   "prereqTechIds": [
+    "GENE"
+   ],
+   "cost": {
+    "eng": 1000,
+    "des": 500,
+    "res": 3000,
+    "mgt": 2000,
+    "total": 6500
+   }
+  },
+  {
+   "no": 15,
+   "sectorName": "医薬・ヘルスケア・バイオ",
+   "histYear": 1987,
+   "gateYear": 1985,
+   "slack": 2,
+   "service": "生活習慣病を予防的に抑える薬",
+   "prereqTechIds": [
+    "MOLBIO"
+   ],
+   "cost": {
+    "eng": 1500,
+    "des": 500,
+    "res": 4500,
+    "mgt": 2500,
+    "total": 9000
+   }
+  },
+  {
+   "no": 15,
+   "sectorName": "医薬・ヘルスケア・バイオ",
+   "histYear": 1998,
+   "gateYear": 1985,
+   "slack": 13,
+   "service": "生活の質を改善する治療薬",
+   "prereqTechIds": [
+    "MOLBIO"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 1000,
+    "res": 10000,
+    "mgt": 6000,
+    "total": 20000
+   }
+  },
+  {
+   "no": 15,
+   "sectorName": "医薬・ヘルスケア・バイオ",
+   "histYear": 2006,
+   "gateYear": 2000,
+   "slack": 6,
+   "service": "がんを予防するワクチン",
+   "prereqTechIds": [
+    "IMMUNO"
+   ],
+   "cost": {
+    "eng": 5000,
+    "des": 1500,
+    "res": 16000,
+    "mgt": 9500,
+    "total": 32000
+   }
+  },
+  {
+   "no": 15,
+   "sectorName": "医薬・ヘルスケア・バイオ",
+   "histYear": 2020,
+   "gateYear": 2018,
+   "slack": 2,
+   "service": "遺伝情報を使う迅速開発ワクチン",
+   "prereqTechIds": [
+    "MRNA"
+   ],
+   "cost": {
+    "eng": 7000,
+    "des": 2500,
+    "res": 24000,
+    "mgt": 14500,
+    "total": 48000
+   }
+  },
+  {
+   "no": 16,
+   "sectorName": "食品・飲料・外食",
+   "histYear": 1980,
+   "gateYear": 1980,
+   "slack": 0,
+   "service": "温めるだけ・即席で食べられる加工食品",
+   "prereqTechIds": [
+    "RETORT"
+   ],
+   "cost": {
+    "eng": 1000,
+    "des": 1500,
+    "res": 2000,
+    "mgt": 3000,
+    "total": 7500
+   }
+  },
+  {
+   "no": 16,
+   "sectorName": "食品・飲料・外食",
+   "histYear": 1997,
+   "gateYear": 1995,
+   "slack": 2,
+   "service": "健康機能を訴求する飲料・食品",
+   "prereqTechIds": [
+    "FUNCFOOD"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 5000,
+    "res": 6000,
+    "mgt": 10000,
+    "total": 24000
+   }
+  },
+  {
+   "no": 16,
+   "sectorName": "食品・飲料・外食",
+   "histYear": 2005,
+   "gateYear": 1980,
+   "slack": 25,
+   "service": "高付加価値なプレミアム嗜好品",
+   "prereqTechIds": [
+    "MASSPROD"
+   ],
+   "cost": {
+    "eng": 4000,
+    "des": 6500,
+    "res": 8000,
+    "mgt": 13000,
+    "total": 31500
+   }
+  },
+  {
+   "no": 16,
+   "sectorName": "食品・飲料・外食",
+   "histYear": 2013,
+   "gateYear": 2010,
+   "slack": 3,
+   "service": "品質重視のこだわりコーヒー体験",
+   "prereqTechIds": [
+    "ROAST"
+   ],
+   "cost": {
+    "eng": 5500,
+    "des": 9500,
+    "res": 11500,
+    "mgt": 19000,
+    "total": 45500
+   }
+  },
+  {
+   "no": 16,
+   "sectorName": "食品・飲料・外食",
+   "histYear": 2019,
+   "gateYear": 2015,
+   "slack": 4,
+   "service": "動物性を使わない代替食品",
+   "prereqTechIds": [
+    "FERMENT"
+   ],
+   "cost": {
+    "eng": 7000,
+    "des": 12000,
+    "res": 14500,
+    "mgt": 24000,
+    "total": 57500
+   }
+  },
+  {
+   "no": 17,
+   "sectorName": "アパレル・ファッション",
+   "histYear": 1984,
+   "gateYear": 1984,
+   "slack": 0,
+   "service": "低価格・高品質の実用衣料",
+   "prereqTechIds": [
+    "SPA"
+   ],
+   "cost": {
+    "eng": 500,
+    "des": 3000,
+    "res": 1000,
+    "mgt": 2000,
+    "total": 6500
+   }
+  },
+  {
+   "no": 17,
+   "sectorName": "アパレル・ファッション",
+   "histYear": 2000,
+   "gateYear": 1998,
+   "slack": 2,
+   "service": "流行を素早く安価に提供（ファストファッション）",
+   "prereqTechIds": [
+    "FASTFASH"
+   ],
+   "cost": {
+    "eng": 2000,
+    "des": 10000,
+    "res": 4000,
+    "mgt": 7000,
+    "total": 23000
+   }
+  },
+  {
+   "no": 17,
+   "sectorName": "アパレル・ファッション",
+   "histYear": 2006,
+   "gateYear": 1990,
+   "slack": 16,
+   "service": "機能性を持たせた日常衣料",
+   "prereqTechIds": [
+    "MATERIAL"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 16000,
+    "res": 6500,
+    "mgt": 11000,
+    "total": 36500
+   }
+  },
+  {
+   "no": 17,
+   "sectorName": "アパレル・ファッション",
+   "histYear": 2015,
+   "gateYear": 2013,
+   "slack": 2,
+   "service": "ネット直販でブランドを届ける（D2C）",
+   "prereqTechIds": [
+    "ECOM",
+    "RECO"
+   ],
+   "cost": {
+    "eng": 4000,
+    "des": 19000,
+    "res": 7500,
+    "mgt": 13500,
+    "total": 44000
+   }
+  },
+  {
+   "no": 18,
+   "sectorName": "玩具・ホビー",
+   "histYear": 1980,
+   "gateYear": 1980,
+   "slack": 0,
+   "service": "頭脳パズルの玩具",
+   "prereqTechIds": [
+    "MOLD"
+   ],
+   "cost": {
+    "eng": 1500,
+    "des": 3000,
+    "res": 1000,
+    "mgt": 1500,
+    "total": 7000
+   }
+  },
+  {
+   "no": 18,
+   "sectorName": "玩具・ホビー",
+   "histYear": 1996,
+   "gateYear": 1985,
+   "slack": 11,
+   "service": "育成する携帯型玩具",
+   "prereqTechIds": [
+    "LCD",
+    "MOLD"
+   ],
+   "cost": {
+    "eng": 5000,
+    "des": 10000,
+    "res": 3000,
+    "mgt": 5000,
+    "total": 23000
+   }
+  },
+  {
+   "no": 18,
+   "sectorName": "玩具・ホビー",
+   "histYear": 1998,
+   "gateYear": 1980,
+   "slack": 18,
+   "service": "対戦・収集を楽しむ玩具",
+   "prereqTechIds": [
+    "MOLD"
+   ],
+   "cost": {
+    "eng": 5000,
+    "des": 10000,
+    "res": 3000,
+    "mgt": 5000,
+    "total": 23000
+   }
+  },
+  {
+   "no": 18,
+   "sectorName": "玩具・ホビー",
+   "histYear": 2016,
+   "gateYear": 2011,
+   "slack": 5,
+   "service": "デジタル連動・プログラミング学習玩具",
+   "prereqTechIds": [
+    "NFC",
+    "SENSOR"
+   ],
+   "cost": {
+    "eng": 12000,
+    "des": 24000,
+    "res": 7000,
+    "mgt": 12000,
+    "total": 55000
+   }
+  },
+  {
+   "no": 19,
+   "sectorName": "航空・宇宙",
+   "histYear": 1981,
+   "gateYear": 1981,
+   "slack": 0,
+   "service": "再利用を狙う宇宙往還機",
+   "prereqTechIds": [
+    "ROCKET",
+    "HEAT"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 1000,
+    "res": 2500,
+    "mgt": 2500,
+    "total": 9000
+   }
+  },
+  {
+   "no": 19,
+   "sectorName": "航空・宇宙",
+   "histYear": 2004,
+   "gateYear": 1990,
+   "slack": 14,
+   "service": "民間による有人宇宙飛行",
+   "prereqTechIds": [
+    "ROCKET",
+    "MATERIAL"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 4000,
+    "res": 10500,
+    "mgt": 10500,
+    "total": 38000
+   }
+  },
+  {
+   "no": 19,
+   "sectorName": "航空・宇宙",
+   "histYear": 2010,
+   "gateYear": 1981,
+   "slack": 29,
+   "service": "民間による物資輸送ロケット",
+   "prereqTechIds": [
+    "ROCKET",
+    "MASSPROD"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 5000,
+    "res": 13000,
+    "mgt": 13000,
+    "total": 47000
+   }
+  },
+  {
+   "no": 19,
+   "sectorName": "航空・宇宙",
+   "histYear": 2015,
+   "gateYear": 2015,
+   "slack": 0,
+   "service": "ロケットの再使用による低コスト化",
+   "prereqTechIds": [
+    "REUSE"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 5500,
+    "res": 15000,
+    "mgt": 15000,
+    "total": 54500
+   }
+  },
+  {
+   "no": 19,
+   "sectorName": "航空・宇宙",
+   "histYear": 2021,
+   "gateYear": 2015,
+   "slack": 6,
+   "service": "一般客向け宇宙旅行",
+   "prereqTechIds": [
+    "REUSE"
+   ],
+   "cost": {
+    "eng": 30000,
+    "des": 9000,
+    "res": 24000,
+    "mgt": 24000,
+    "total": 87000
+   }
+  },
+  {
+   "no": 20,
+   "sectorName": "エネルギー・環境（再エネ/電池）",
+   "histYear": 1991,
+   "gateYear": 1991,
+   "slack": 0,
+   "service": "小型・高容量の充電池",
+   "prereqTechIds": [
+    "LIB"
+   ],
+   "cost": {
+    "eng": 6500,
+    "des": 1500,
+    "res": 5000,
+    "mgt": 4500,
+    "total": 17500
+   }
+  },
+  {
+   "no": 20,
+   "sectorName": "エネルギー・環境（再エネ/電池）",
+   "histYear": 2000,
+   "gateYear": 1998,
+   "slack": 2,
+   "service": "家庭でも発電する太陽光",
+   "prereqTechIds": [
+    "SOLAR"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 2000,
+    "res": 8000,
+    "mgt": 7000,
+    "total": 27000
+   }
+  },
+  {
+   "no": 20,
+   "sectorName": "エネルギー・環境（再エネ/電池）",
+   "histYear": 2010,
+   "gateYear": 2008,
+   "slack": 2,
+   "service": "電気を蓄える家庭用蓄電",
+   "prereqTechIds": [
+    "BIGLIB"
+   ],
+   "cost": {
+    "eng": 16000,
+    "des": 3000,
+    "res": 13000,
+    "mgt": 11000,
+    "total": 43000
+   }
+  },
+  {
+   "no": 20,
+   "sectorName": "エネルギー・環境（再エネ/電池）",
+   "histYear": 2015,
+   "gateYear": 2008,
+   "slack": 7,
+   "service": "大容量の定置型蓄電",
+   "prereqTechIds": [
+    "BIGLIB"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 4000,
+    "res": 15000,
+    "mgt": 13500,
+    "total": 51500
+   }
+  },
+  {
+   "no": 20,
+   "sectorName": "エネルギー・環境（再エネ/電池）",
+   "histYear": 2020,
+   "gateYear": 2013,
+   "slack": 7,
+   "service": "大規模洋上での風力発電",
+   "prereqTechIds": [
+    "WINDT"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 5000,
+    "res": 19000,
+    "mgt": 17000,
+    "total": 65000
+   }
+  },
+  {
+   "no": 21,
+   "sectorName": "産業機械・ロボティクス",
+   "histYear": 1980,
+   "gateYear": 1980,
+   "slack": 0,
+   "service": "工場作業を自動化する産業ロボット",
+   "prereqTechIds": [
+    "SERVO"
+   ],
+   "cost": {
+    "eng": 3000,
+    "des": 1000,
+    "res": 2000,
+    "mgt": 1500,
+    "total": 7500
+   }
+  },
+  {
+   "no": 21,
+   "sectorName": "産業機械・ロボティクス",
+   "histYear": 2000,
+   "gateYear": 2000,
+   "slack": 0,
+   "service": "人型で歩行・作業する試み",
+   "prereqTechIds": [
+    "SERVO",
+    "SENSOR"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 4000,
+    "res": 7000,
+    "mgt": 5000,
+    "total": 26000
+   }
+  },
+  {
+   "no": 21,
+   "sectorName": "産業機械・ロボティクス",
+   "histYear": 2002,
+   "gateYear": 2000,
+   "slack": 2,
+   "service": "家庭内を自動で掃除するロボット",
+   "prereqTechIds": [
+    "SENSOR",
+    "LIB"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 5000,
+    "res": 9000,
+    "mgt": 6500,
+    "total": 33500
+   }
+  },
+  {
+   "no": 21,
+   "sectorName": "産業機械・ロボティクス",
+   "histYear": 2012,
+   "gateYear": 2010,
+   "slack": 2,
+   "service": "人と並んで働く協働ロボット",
+   "prereqTechIds": [
+    "FORCE"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 7500,
+    "res": 13500,
+    "mgt": 9500,
+    "total": 49500
+   }
+  },
+  {
+   "no": 21,
+   "sectorName": "産業機械・ロボティクス",
+   "histYear": 2020,
+   "gateYear": 2012,
+   "slack": 8,
+   "service": "倉庫・物流を無人搬送で自動化",
+   "prereqTechIds": [
+    "SLAM",
+    "DL"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 9500,
+    "res": 17000,
+    "mgt": 12000,
+    "total": 62500
+   }
+  },
+  {
+   "no": 22,
+   "sectorName": "広告・マーケティング",
+   "histYear": 2000,
+   "gateYear": 1998,
+   "slack": 2,
+   "service": "検索語に連動して出す広告",
+   "prereqTechIds": [
+    "SEARCHALGO"
+   ],
+   "cost": {
+    "eng": 5000,
+    "des": 7000,
+    "res": 10000,
+    "mgt": 7000,
+    "total": 29000
+   }
+  },
+  {
+   "no": 22,
+   "sectorName": "広告・マーケティング",
+   "histYear": 2003,
+   "gateYear": 1998,
+   "slack": 5,
+   "service": "サイト内容に合わせ自動配信する広告",
+   "prereqTechIds": [
+    "SEARCHALGO",
+    "DB"
+   ],
+   "cost": {
+    "eng": 6500,
+    "des": 9000,
+    "res": 13000,
+    "mgt": 9000,
+    "total": 37500
+   }
+  },
+  {
+   "no": 22,
+   "sectorName": "広告・マーケティング",
+   "histYear": 2012,
+   "gateYear": 2006,
+   "slack": 6,
+   "service": "交流網の関心データを使う広告",
+   "prereqTechIds": [
+    "DB",
+    "CLOUD",
+    "BB"
+   ],
+   "cost": {
+    "eng": 9500,
+    "des": 13500,
+    "res": 19000,
+    "mgt": 13500,
+    "total": 55500
+   }
+  },
+  {
+   "no": 22,
+   "sectorName": "広告・マーケティング",
+   "histYear": 2016,
+   "gateYear": 2013,
+   "slack": 3,
+   "service": "影響力ある個人を通じた宣伝",
+   "prereqTechIds": [
+    "RECO"
+   ],
+   "cost": {
+    "eng": 12000,
+    "des": 17000,
+    "res": 24000,
+    "mgt": 17000,
+    "total": 70000
+   }
+  },
+  {
+   "no": 23,
+   "sectorName": "教育・EdTech",
+   "histYear": 2008,
+   "gateYear": 2003,
+   "slack": 5,
+   "service": "無料で学べる動画授業",
+   "prereqTechIds": [
+    "CODEC",
+    "BB"
+   ],
+   "cost": {
+    "eng": 11000,
+    "des": 11000,
+    "res": 9500,
+    "mgt": 13000,
+    "total": 44500
+   }
+  },
+  {
+   "no": 23,
+   "sectorName": "教育・EdTech",
+   "histYear": 2011,
+   "gateYear": 2005,
+   "slack": 6,
+   "service": "ゲーム感覚の語学学習",
+   "prereqTechIds": [
+    "G3",
+    "SOC"
+   ],
+   "cost": {
+    "eng": 13500,
+    "des": 13500,
+    "res": 11500,
+    "mgt": 15000,
+    "total": 53500
+   }
+  },
+  {
+   "no": 23,
+   "sectorName": "教育・EdTech",
+   "histYear": 2012,
+   "gateYear": 2008,
+   "slack": 4,
+   "service": "大学講義をネットで公開（MOOC）",
+   "prereqTechIds": [
+    "LMS",
+    "CODEC"
+   ],
+   "cost": {
+    "eng": 13500,
+    "des": 13500,
+    "res": 11500,
+    "mgt": 15000,
+    "total": 53500
+   }
+  },
+  {
+   "no": 23,
+   "sectorName": "教育・EdTech",
+   "histYear": 2020,
+   "gateYear": 2011,
+   "slack": 9,
+   "service": "遠隔での双方向オンライン授業",
+   "prereqTechIds": [
+    "WEBRTC",
+    "CLOUD"
+   ],
+   "cost": {
+    "eng": 17000,
+    "des": 17000,
+    "res": 14500,
+    "mgt": 19000,
+    "total": 67500
+   }
+  },
+  {
+   "no": 24,
+   "sectorName": "交通・シェアリング",
+   "histYear": 2008,
+   "gateYear": 2008,
+   "slack": 0,
+   "service": "個人の空き部屋を旅行者に貸す（民泊）",
+   "prereqTechIds": [
+    "MATCH",
+    "GPS",
+    "CRYPTO"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 8000,
+    "res": 6500,
+    "mgt": 16000,
+    "total": 43500
+   }
+  },
+  {
+   "no": 24,
+   "sectorName": "交通・シェアリング",
+   "histYear": 2009,
+   "gateYear": 2008,
+   "slack": 1,
+   "service": "スマホで車を呼ぶ配車",
+   "prereqTechIds": [
+    "GPS",
+    "G3",
+    "MATCH"
+   ],
+   "cost": {
+    "eng": 13000,
+    "des": 8000,
+    "res": 6500,
+    "mgt": 16000,
+    "total": 43500
+   }
+  },
+  {
+   "no": 24,
+   "sectorName": "交通・シェアリング",
+   "histYear": 2013,
+   "gateYear": 2010,
+   "slack": 3,
+   "service": "相乗り・地域密着の配車",
+   "prereqTechIds": [
+    "GPS",
+    "G4",
+    "MATCH"
+   ],
+   "cost": {
+    "eng": 15000,
+    "des": 9500,
+    "res": 7500,
+    "mgt": 19000,
+    "total": 51000
+   }
+  },
+  {
+   "no": 24,
+   "sectorName": "交通・シェアリング",
+   "histYear": 2017,
+   "gateYear": 2011,
+   "slack": 6,
+   "service": "街中で借りる電動小型モビリティ",
+   "prereqTechIds": [
+    "LIB",
+    "GPS",
+    "NFC"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 12000,
+    "res": 9500,
+    "mgt": 24000,
+    "total": 64500
+   }
+  },
+  {
+   "no": 25,
+   "sectorName": "検索・生成AIサービス",
+   "histYear": 1998,
+   "gateYear": 1998,
+   "slack": 0,
+   "service": "目的の情報を的確に探す検索",
+   "prereqTechIds": [
+    "SEARCHALGO"
+   ],
+   "cost": {
+    "eng": 10000,
+    "des": 5000,
+    "res": 3000,
+    "mgt": 3000,
+    "total": 21000
+   }
+  },
+  {
+   "no": 25,
+   "sectorName": "検索・生成AIサービス",
+   "histYear": 2011,
+   "gateYear": 2011,
+   "slack": 0,
+   "service": "話しかけて操作する音声アシスタント",
+   "prereqTechIds": [
+    "ASR"
+   ],
+   "cost": {
+    "eng": 19000,
+    "des": 9500,
+    "res": 5500,
+    "mgt": 5500,
+    "total": 39500
+   }
+  },
+  {
+   "no": 25,
+   "sectorName": "検索・生成AIサービス",
+   "histYear": 2016,
+   "gateYear": 2012,
+   "slack": 4,
+   "service": "人間を超える対戦AI",
+   "prereqTechIds": [
+    "DL"
+   ],
+   "cost": {
+    "eng": 24000,
+    "des": 12000,
+    "res": 7000,
+    "mgt": 7000,
+    "total": 50000
+   }
+  },
+  {
+   "no": 25,
+   "sectorName": "検索・生成AIサービス",
+   "histYear": 2022,
+   "gateYear": 2018,
+   "slack": 4,
+   "service": "対話で文章を生成するAI",
+   "prereqTechIds": [
+    "TRANSF"
+   ],
+   "cost": {
+    "eng": 30000,
+    "des": 15000,
+    "res": 9000,
+    "mgt": 9000,
+    "total": 63000
+   }
+  },
+  {
+   "no": 25,
+   "sectorName": "検索・生成AIサービス",
+   "histYear": 2023,
+   "gateYear": 2022,
+   "slack": 1,
+   "service": "指示から画像・文章を自動生成",
+   "prereqTechIds": [
+    "DIFF"
+   ],
+   "cost": {
+    "eng": 30000,
+    "des": 15000,
+    "res": 9000,
+    "mgt": 9000,
+    "total": 63000
+   }
+  }
+ ],
+ "costScale": [
+  {
+   "band": "1980–1985",
+   "scale": 3000
+  },
+  {
+   "band": "1986–1990",
+   "scale": 4500
+  },
+  {
+   "band": "1991–1995",
+   "scale": 6500
+  },
+  {
+   "band": "1996–2000",
+   "scale": 10000
+  },
+  {
+   "band": "2001–2005",
+   "scale": 13000
+  },
+  {
+   "band": "2006–2010",
+   "scale": 16000
+  },
+  {
+   "band": "2011–2015",
+   "scale": 19000
+  },
+  {
+   "band": "2016–2020",
+   "scale": 24000
+  },
+  {
+   "band": "2021–2025",
+   "scale": 30000
+  }
+ ],
+ "sectorProfiles": [
+  {
+   "no": 1,
+   "sector": "パーソナルコンピュータ",
+   "eng": 1,
+   "des": 0.6,
+   "res": 0.4,
+   "mgt": 0.5,
+   "tendency": "ハード開発中心。設計美も重視"
+  },
+  {
+   "no": 2,
+   "sector": "家庭用ゲーム機・ゲーム",
+   "eng": 1,
+   "des": 0.9,
+   "res": 0.3,
+   "mgt": 0.4,
+   "tendency": "技術と遊びの面白さ(デザイン)が両輪"
+  },
+  {
+   "no": 3,
+   "sector": "携帯電話・スマートフォン",
+   "eng": 1,
+   "des": 0.7,
+   "res": 0.4,
+   "mgt": 0.5,
+   "tendency": "高集積ハード＋UI"
+  },
+  {
+   "no": 4,
+   "sector": "インターネット／Webサービス",
+   "eng": 1,
+   "des": 0.6,
+   "res": 0.4,
+   "mgt": 0.5,
+   "tendency": "サーバー技術中心"
+  },
+  {
+   "no": 5,
+   "sector": "ソフトウェア（OS・業務アプリ）",
+   "eng": 1,
+   "des": 0.6,
+   "res": 0.3,
+   "mgt": 0.5,
+   "tendency": "実装中心・運用管理"
+  },
+  {
+   "no": 6,
+   "sector": "半導体・クラウド・AI",
+   "eng": 1,
+   "des": 0.2,
+   "res": 0.7,
+   "mgt": 0.4,
+   "tendency": "最先端研究×実装。デザイン比重は低い"
+  },
+  {
+   "no": 7,
+   "sector": "家電・AV機器",
+   "eng": 1,
+   "des": 0.6,
+   "res": 0.3,
+   "mgt": 0.4,
+   "tendency": "量産ハード＋商品性"
+  },
+  {
+   "no": 8,
+   "sector": "自動車・モビリティ",
+   "eng": 1,
+   "des": 0.6,
+   "res": 0.5,
+   "mgt": 0.6,
+   "tendency": "重工業。安全・品質のマネジメント重"
+  },
+  {
+   "no": 9,
+   "sector": "通信・ネットワークインフラ",
+   "eng": 1,
+   "des": 0.2,
+   "res": 0.5,
+   "mgt": 0.6,
+   "tendency": "インフラ技術・全国展開管理"
+  },
+  {
+   "no": 10,
+   "sector": "SNS・メディアプラットフォーム",
+   "eng": 1,
+   "des": 0.7,
+   "res": 0.5,
+   "mgt": 0.7,
+   "tendency": "技術＋コミュニティ運営・世界観"
+  },
+  {
+   "no": 11,
+   "sector": "Eコマース・小売",
+   "eng": 0.8,
+   "des": 0.5,
+   "res": 0.4,
+   "mgt": 1,
+   "tendency": "物流・在庫のオペレーション管理が要"
+  },
+  {
+   "no": 12,
+   "sector": "金融・フィンテック",
+   "eng": 1,
+   "des": 0.4,
+   "res": 0.5,
+   "mgt": 0.7,
+   "tendency": "堅牢な実装＋規制・信用管理"
+  },
+  {
+   "no": 13,
+   "sector": "音楽・映像配信",
+   "eng": 1,
+   "des": 0.6,
+   "res": 0.4,
+   "mgt": 0.7,
+   "tendency": "配信技術＋権利・契約管理"
+  },
+  {
+   "no": 14,
+   "sector": "カメラ・映像機器",
+   "eng": 1,
+   "des": 0.6,
+   "res": 0.4,
+   "mgt": 0.4,
+   "tendency": "精密イメージング技術"
+  },
+  {
+   "no": 15,
+   "sector": "医薬・ヘルスケア・バイオ",
+   "eng": 0.3,
+   "des": 0.1,
+   "res": 1,
+   "mgt": 0.6,
+   "tendency": "創薬研究が支配的＋治験管理"
+  },
+  {
+   "no": 16,
+   "sector": "食品・飲料・外食",
+   "eng": 0.3,
+   "des": 0.5,
+   "res": 0.6,
+   "mgt": 1,
+   "tendency": "成分研究＋ブランド＋量産管理"
+  },
+  {
+   "no": 17,
+   "sector": "アパレル・ファッション",
+   "eng": 0.2,
+   "des": 1,
+   "res": 0.4,
+   "mgt": 0.7,
+   "tendency": "意匠(デザイン)が支配的＋供給網管理"
+  },
+  {
+   "no": 18,
+   "sector": "玩具・ホビー",
+   "eng": 0.5,
+   "des": 1,
+   "res": 0.3,
+   "mgt": 0.5,
+   "tendency": "遊びのデザインが支配的"
+  },
+  {
+   "no": 19,
+   "sector": "航空・宇宙",
+   "eng": 1,
+   "des": 0.3,
+   "res": 0.8,
+   "mgt": 0.8,
+   "tendency": "高難度研究＋大規模プロジェクト管理"
+  },
+  {
+   "no": 20,
+   "sector": "エネルギー・環境（再エネ/電池）",
+   "eng": 1,
+   "des": 0.2,
+   "res": 0.8,
+   "mgt": 0.7,
+   "tendency": "素材研究＋インフラ展開管理"
+  },
+  {
+   "no": 21,
+   "sector": "産業機械・ロボティクス",
+   "eng": 1,
+   "des": 0.4,
+   "res": 0.7,
+   "mgt": 0.5,
+   "tendency": "制御研究＋実装"
+  },
+  {
+   "no": 22,
+   "sector": "広告・マーケティング",
+   "eng": 0.5,
+   "des": 0.7,
+   "res": 1,
+   "mgt": 0.7,
+   "tendency": "データ分析(リサーチ)＋クリエイティブ"
+  },
+  {
+   "no": 23,
+   "sector": "教育・EdTech",
+   "eng": 0.7,
+   "des": 0.7,
+   "res": 0.6,
+   "mgt": 0.8,
+   "tendency": "技術・内容・運営のバランス型"
+  },
+  {
+   "no": 24,
+   "sector": "交通・シェアリング",
+   "eng": 0.8,
+   "des": 0.5,
+   "res": 0.4,
+   "mgt": 1,
+   "tendency": "配車/物流オペレーション管理が要"
+  },
+  {
+   "no": 25,
+   "sector": "検索・生成AIサービス",
+   "eng": 1,
+   "des": 0.5,
+   "res": 0.3,
+   "mgt": 0.3,
+   "tendency": "アルゴリズム実装が支配的(例のアンカー)"
+  }
+ ]
+}
