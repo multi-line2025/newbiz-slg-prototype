@@ -13,7 +13,7 @@
 
 import type { Person, Id } from "./model/types";
 import type { ProtoGameState, MarketState, Product } from "./state";
-import { employees, productTeam } from "./state";
+import { employees, productTeam, workforce, effectiveApMax } from "./state";
 import { applyFinance, computeRevenue } from "./finance";
 import { applyGrowth, envFromMorale } from "./growth";
 import { recomputeLifeExpectancy } from "./person";
@@ -71,14 +71,13 @@ export function advanceTurn(state: ProtoGameState): TurnResult {
   }
   s = { ...s, era: nextEra };
 
-  // ---- 研究：社RP産出（§12.3）----
-  const emps = employees(s);
-  const rpGain = rpPerTurn(emps, s.company.researchBudget);
+  // ---- 研究：社RP産出（§12.3）。v0.16：実務PCも研究戦力に含む ----
+  const rpGain = rpPerTurn(workforce(s), s.company.researchBudget);
   const nextRP = s.company.RP_C + rpGain;
 
-  // 不祥事（評判ショック・§4.11.2a 簡易版）
+  // 不祥事（評判ショック・§4.11.2a 簡易版）。HRリスクは在籍社員のみ（社長は対象外）。
   let nextRep = s.company.reputation;
-  for (const e of emps) {
+  for (const e of employees(s)) {
     const risk = 0.003 * (e.attributes.hidden.controversy / 20);
     if (rng.chance(risk)) {
       const shock = 25 * rng.float(0.5, 1.5) * 0.4;
@@ -175,7 +174,7 @@ export function advanceTurn(state: ProtoGameState): TurnResult {
   const profitStreak = netProfit >= 0 ? s.profitStreak + 1 : 0;
   s = {
     ...s,
-    ap: s.apMax,
+    ap: effectiveApMax(s), // v0.16：社長が実務中は AP上限が下がる
     turn: s.turn + 1,
     rngSeed: rng.nextSeed(),
     profitStreak,

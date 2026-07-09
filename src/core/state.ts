@@ -10,6 +10,7 @@
 
 import type { Person, Id, Era, PlayableCountry } from "./model/types";
 import type { Sector, Archetype } from "./model/constants";
+import { PC_WORK_AP_PENALTY } from "./model/constants";
 
 /**
  * プロトタイプ用の会社リソース。
@@ -166,15 +167,44 @@ export interface ProtoGameState {
 
 /** ある製品に配属された社員を返す。 */
 export function productTeam(s: ProtoGameState, productId: Id): Person[] {
-  return s.employeeIds
+  const team = s.employeeIds
     .filter((id) => s.assignments[id] === productId)
     .map((id) => s.people[id])
     .filter(Boolean);
+  // v0.16：社長(PC)がこの製品に配属されていれば戦力に含める（employeeIds非会員のまま）。
+  const pcId = s.pc?.personId;
+  if (pcId && s.assignments[pcId] === productId && s.people[pcId]) team.push(s.people[pcId]);
+  return team;
 }
 
-/** 在籍社員の Person 配列を取り出す。 */
+/** 在籍社員の Person 配列を取り出す（＝給与/HR基準。PCは含まない）。 */
 export function employees(s: ProtoGameState): Person[] {
   return s.employeeIds.map((id) => s.people[id]).filter(Boolean);
+}
+
+/** 実務に就いているPC本人（assignedRole有り）。未配属なら null（v0.16）。 */
+export function pcAssignedPerson(s: ProtoGameState): Person | null {
+  const p = s.people[s.pc?.personId];
+  return p && p.assignedRole != null ? p : null;
+}
+
+/** PCが実務役割に就いているか（apMax減・出力算入のトリガ・v0.16）。 */
+export function pcWorking(s: ProtoGameState): boolean {
+  return pcAssignedPerson(s) != null;
+}
+
+/**
+ * 出力集計の“戦力”（＝在籍社員＋配属中のPC）。v0.16。
+ * QUAL/force/analysisSkill 等の出力にだけ用いる（給与/poaching は employees を使い続ける）。
+ */
+export function workforce(s: ProtoGameState): Person[] {
+  const pc = pcAssignedPerson(s);
+  return pc ? [...employees(s), pc] : employees(s);
+}
+
+/** 実効AP上限（PCが実務中は PC_WORK_AP_PENALTY 分減る・v0.16）。 */
+export function effectiveApMax(s: ProtoGameState): number {
+  return Math.max(1, s.apMax - (pcWorking(s) ? PC_WORK_AP_PENALTY : 0));
 }
 
 /** 候補プールの Person 配列を取り出す。 */

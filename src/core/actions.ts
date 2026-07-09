@@ -10,7 +10,7 @@
 
 import type { Person, Id, Role, Contract, PlayableCountry } from "./model/types";
 import type { ProtoGameState, Product, ProtoCompany } from "./state";
-import { employees } from "./state";
+import { workforce, effectiveApMax } from "./state";
 import {
   SCOUT_STEPS, AP_COST, RESEARCH_BUDGET_STEP, MARKET_BUDGET_STEP, ANALYSIS_STEPS,
   SCOUT_SUB_AP, SCOUT_SUB_COST,
@@ -41,9 +41,9 @@ function fail(state: ProtoGameState, message: string): ActionResult {
   return { state, ok: false, message };
 }
 
-/** 会社の調査担当スキル＝在籍社員の max(management, research) の最大値（無ければ10=並）。 */
+/** 会社の調査担当スキル＝戦力(社員＋実務PC)の max(management, research) の最大値（無ければ10=並）。 */
 export function companyScoutSkill(state: ProtoGameState): number {
-  const emps = employees(state);
+  const emps = workforce(state);
   if (emps.length === 0) return 10;
   return Math.max(
     ...emps.map((e) => Math.max(e.attributes.occupational.management, e.attributes.occupational.research))
@@ -332,18 +332,32 @@ export function educateChild(state: ProtoGameState, childId: Id): ActionResult {
 export function assignRole(state: ProtoGameState, personId: Id, role: Role): ActionResult {
   const p = state.people[personId];
   if (!p) return fail(state, "対象が見つかりません。");
-  if (!state.employeeIds.includes(personId)) return fail(state, `${p.name}は社員ではありません。`);
+  const isPC = personId === state.pc.personId; // v0.16：社長は特例で配属可（employeeIds非会員のまま）
+  if (!isPC && !state.employeeIds.includes(personId)) return fail(state, `${p.name}は社員ではありません。`);
   if (state.ap < AP_COST.assign) return fail(state, `APが足りません（必要${AP_COST.assign}AP）。`);
 
   const updated: Person = { ...p, assignedRole: role };
+  let next: ProtoGameState = { ...state, ap: state.ap - AP_COST.assign, people: withPerson(state, updated) };
+  // 社長が現場に立つと apMax が下がる → 現在APも新上限にクランプ（経営judgeが手薄に）。
+  if (isPC) next = { ...next, ap: Math.min(next.ap, effectiveApMax(next)) };
   return {
-    state: {
-      ...state,
-      ap: state.ap - AP_COST.assign,
-      people: withPerson(state, updated),
-    },
+    state: next,
     ok: true,
-    message: `配属：${p.name} → ${role}`,
+    message: isPC ? `社長が現場へ：${p.name}（社長・兼務）→ ${role}（AP上限−${state.apMax - effectiveApMax(next)}）` : `配属：${p.name} → ${role}`,
+  };
+}
+
+/** 社長を実務から外す（v0.16）。assignedRole と製品配属を解除し、apMax を回復。 */
+export function releasePC(state: ProtoGameState): ActionResult {
+  const pcId = state.pc.personId;
+  const p = state.people[pcId];
+  if (!p || p.assignedRole == null) return fail(state, "社長は現在、実務に就いていません。");
+  const assignments = { ...state.assignments };
+  delete assignments[pcId];
+  return {
+    state: { ...state, people: withPerson(state, { ...p, assignedRole: null }), assignments },
+    ok: true,
+    message: `社長が実務を離れ、経営に専念します（AP上限が回復）。`,
   };
 }
 
@@ -418,7 +432,8 @@ export function launchProduct(state: ProtoGameState, blueprintId: Id, country: P
 
 /** 社員を製品へ配属（QUAL_p・force算出に使用・要望③）。AP不要の管理操作。 */
 export function assignToProduct(state: ProtoGameState, personId: Id, productId: Id | null): ActionResult {
-  if (!state.employeeIds.includes(personId)) return fail(state, "社員ではありません。");
+  const isPC = personId === state.pc.personId; // v0.16：社長は特例で製品配属可
+  if (!isPC && !state.employeeIds.includes(personId)) return fail(state, "社員ではありません。");
   if (productId && !state.products.some((p) => p.id === productId)) return fail(state, "製品が見つかりません。");
   const assignments = { ...state.assignments };
   if (productId) assignments[personId] = productId;
@@ -442,7 +457,7 @@ export function analyzeMarket(state: ProtoGameState, marketId: string): ActionRe
   if (market.analysisInProgress) return fail(state, `${marketId}は分析中です。`);
   if (market.analysisLevel >= 2) return fail(state, `${marketId}は精密分析済みです。`);
 
-  const skill = analysisSkill(employees(state));
+  const skill = analysisSkill(workforce(state)); // v0.16：実務PCも分析戦力に含む
   if (skill <= 0) return fail(state, "分析担当（研究能力を持つ社員）が必要です。");
 
   const targetLevel = (market.analysisLevel + 1) as 1 | 2;
