@@ -238,11 +238,11 @@ const ATTR_LABEL: Record<string, string> = {
   loyalty: "忠誠", temperament: "気性", controversy: "問題行動性", durability: "頑健さ",
 };
 
-/** 1能力値のバー（1-20）。表示は整数、マウスホバー(title)で実数値を開示。 */
+/** 1能力値のバー（1-20）。表示は整数、ホバーで独自ツールチップに実数値(小数2桁)を即表示（v0.19）。 */
 function attrBar(label: string, val: number): string {
   const pct = (val / 20) * 100;
   const shown = Math.round(val);
-  return `<div class="ab" title="${label}：${val.toFixed(2)}"><span class="ab-l">${label}</span><span class="ab-track"><span class="ab-fill" style="width:${pct}%"></span></span><span class="ab-v">${shown}</span></div>`;
+  return `<div class="ab" data-exact="${label} ${val.toFixed(2)}"><span class="ab-l">${label}</span><span class="ab-track"><span class="ab-fill" style="width:${pct}%"></span></span><span class="ab-v">${shown}</span></div>`;
 }
 /** 1カテゴリのバー群。 */
 function attrCategory(cat: keyof Attributes, attrs: Attributes): string {

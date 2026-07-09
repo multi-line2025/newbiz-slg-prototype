@@ -260,11 +260,16 @@
       /* 能力バー */
       .ab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
       .ab-cat h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
-      .ab { display: flex; align-items: center; gap: 8px; margin: 3px 0; font-size: 12px; }
+      .ab { display: flex; align-items: center; gap: 8px; margin: 3px 0; font-size: 12px; position: relative; }
       .ab-l { width: 128px; color: var(--muted); }
       .ab-track { flex: 1; height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
       .ab-fill { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--ca)); }
       .ab-v { width: 20px; text-align: right; font-variant-numeric: tabular-nums; }
+      /* ホバー独自ツールチップ（実数値・v0.19）。ネイティブtitleの遅延/非表示を回避 */
+      .ab:hover::after { content: attr(data-exact); position: absolute; right: 28px; top: -4px;
+        background: #0b0e13; color: #fff; border: 1px solid var(--border); border-radius: 5px;
+        padding: 2px 8px; font-size: 11px; white-space: nowrap; z-index: 100; pointer-events: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
       /* ゲームオーバー */
       .modal.over { text-align: center; max-width: 460px; }
       .modal.over h2 { color: var(--warn); }
