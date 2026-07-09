@@ -14,10 +14,12 @@ import type { ProtoGameState, Pregnancy } from "./state";
 import {
   REP_MATCH_MAX, ROMANCE_MIN_AGE, CONCEIVE_BASE, GESTATION_TURNS, PA_MUTATION,
   EDU_GROWTH_K, CHILD_GROW_ENV,
-  PC_SALARY_BASE, LIFESTYLE_COST_BASE, SPOUSE_INCOME_K,
+  LIFESTYLE_COST_BASE, SPOUSE_CONTRIB, SPOUSE_REP_PREMIUM,
+  AFFORD_CASH_REF, AFFORD_REP_FULL, AFFORD_SIZE_FULL, AFFORD_W_CASH, AFFORD_W_REP, AFFORD_W_SIZE,
   MARRIAGE_POOL_SIZE, MARRIAGE_CHURN, MARRIAGE_MIN_AGE, MARRIAGE_MAX_AGE,
 } from "./model/constants";
 import { buildPerson, computeCA } from "./person";
+import { baseSalary, effectiveSalary } from "./salary";
 import { applyGrowth } from "./growth";
 import { clamp } from "./util";
 
@@ -37,23 +39,46 @@ function givenOf(name: string): string {
 }
 
 /* ============================================================
- * v0.14：個人資産の収支（PC役員報酬・生活費・配偶者インカム）
+ * v0.15：個人資産の収支（社員給与テーブルと一貫）
+ *  PC役員報酬＝ manager給与(PC.CA) × 会社の支払い能力／配偶者インカム＝ effectiveSalary × 世帯拠出率。
  * ============================================================ */
 
-/** PC役員報酬（会社CASH→wealth）。lifestyleに比例。控えめ＝両業態の生存を維持。 */
+/**
+ * 会社の支払い能力係数（0-1）。CASH残高・評判・従業員数の加重で、
+ * 序盤の小さい会社は低く（founderは薄給）、黒字化・成長で1に近づく。
+ */
+export function companyAffordability(state: ProtoGameState): number {
+  const c = state.company;
+  const cashF = clamp(c.CASH / AFFORD_CASH_REF, 0, 1);
+  const repF = clamp(c.reputation / AFFORD_REP_FULL, 0, 1);
+  const sizeF = clamp(state.employeeIds.length / AFFORD_SIZE_FULL, 0, 1);
+  return clamp(AFFORD_W_CASH * cashF + AFFORD_W_REP * repF + AFFORD_W_SIZE * sizeF, 0, 1);
+}
+
+/**
+ * PC役員報酬（会社CASH→wealth）。manager給与テーブルを PC.CA で引いた額 × 支払い能力。
+ * ＝社員給与と桁が揃い、かつ会社が払える範囲に収まる（非回帰）。
+ */
 export function pcSalary(state: ProtoGameState): number {
-  return Math.round(PC_SALARY_BASE * state.pc.lifestyleFactor);
+  const pc = pcPerson(state);
+  const managerBase = baseSalary("manager", pc.CA); // 社員と同一テーブル（rookie/mid/ace）
+  return Math.round(managerBase * companyAffordability(state));
 }
 /** 個人の生活費（wealthから）。lifestyleに比例。 */
 export function lifestyleCost(state: ProtoGameState): number {
   return Math.round(LIFESTYLE_COST_BASE * state.pc.lifestyleFactor);
 }
-/** 配偶者インカム（世帯収入→wealth）。有能・高評判な伴侶ほど稼ぐ（会社CASHではない）。 */
+/**
+ * 配偶者インカム（世帯収入→wealth・会社CASHではない）。
+ * ＝「その能力で働く社員」の実効給与 × 世帯拠出率。有能・高評判な伴侶ほど大きい（高望みの見返り）。
+ */
 export function spouseIncome(state: ProtoGameState): number {
   if (!state.pc.spouseId) return 0;
   const sp = state.people[state.pc.spouseId];
   if (!sp) return 0;
-  return Math.round(SPOUSE_INCOME_K * (sp.CA / 10 + sp.reputation / 10));
+  const wage = effectiveSalary(sp.jobCategory, sp.CA, sp.attributes.hidden.loyalty, state.company.foundedCountry);
+  const repMult = 1 + SPOUSE_REP_PREMIUM * (sp.reputation / 100); // 高評判の伴侶ほど稼ぐ
+  return Math.round(wage * SPOUSE_CONTRIB * repMult);
 }
 
 /**

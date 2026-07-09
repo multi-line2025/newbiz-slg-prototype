@@ -11,10 +11,11 @@ import {
 } from "../src/core/actions";
 import {
   fertility, repMatchProbability, eligiblePartners, inheritPA, isBloodRelated, pcPerson, buildChild,
-  currentLover, marriageView, surnameOf, spouseIncome, pcSalary,
+  currentLover, marriageView, surnameOf, spouseIncome, pcSalary, companyAffordability, lifestyleCost,
 } from "../src/core/family";
+import { baseSalary, effectiveSalary } from "../src/core/salary";
 import { makePRNG } from "../src/core/prng";
-import { GESTATION_TURNS, MARRIAGE_POOL_SIZE } from "../src/core/model/constants";
+import { GESTATION_TURNS, MARRIAGE_POOL_SIZE, SPOUSE_CONTRIB } from "../src/core/model/constants";
 import type { ProtoGameState } from "../src/core/state";
 import type { Person } from "../src/core/model/types";
 
@@ -257,5 +258,77 @@ describe("v0.14：非回帰（家族は独立・PC給与は控えめ）", () => 
     expect(s.employeeIds.includes(s.pc.personId)).toBe(false);
     expect(s.poolIds.includes(s.pc.personId)).toBe(false);
     expect(s.marriagePool.some((p) => p.id === s.pc.personId)).toBe(false);
+  });
+});
+
+describe("v0.15：社員給与テーブルと一貫した個人経済", () => {
+  it("PC報酬＝ manager給与(PC.CA) × 会社の支払い能力（社員給与と桁が揃う）", () => {
+    const s = initGame({ seed: 3 });
+    const pc = pcPerson(s);
+    const managerBase = baseSalary("manager", pc.CA);
+    const aff = companyAffordability(s);
+    expect(aff).toBeGreaterThan(0);
+    expect(aff).toBeLessThanOrEqual(1);
+    expect(pcSalary(s)).toBe(Math.round(managerBase * aff));
+    // 旧マジック値$400ではなく、社員manager給与スケール由来で桁が上がっている
+    expect(pcSalary(s)).toBeGreaterThan(400);
+  });
+
+  it("支払い能力は会社の成長（CASH・評判・規模）で上がる", () => {
+    const s = initGame({ seed: 3 });
+    const small = companyAffordability(s);
+    const grown = companyAffordability({
+      ...s,
+      company: { ...s.company, CASH: 400000, reputation: 70 },
+      employeeIds: Array.from({ length: 15 }, (_, i) => `e${i}`),
+    } as ProtoGameState);
+    expect(grown).toBeGreaterThan(small);
+    expect(grown).toBeCloseTo(1, 1); // 成長で満額に近づく
+  });
+
+  it("配偶者インカム＝ effectiveSalary(職種,CA,忠誠,国)×拠出率×評判プレミアム（実給与スケール）", () => {
+    const s = initGame({ seed: 7 });
+    const cand = eligiblePartners(s)[0];
+    const sp: Person = { ...cand, CA: 130, reputation: 0, relationToPC: "spouse" };
+    const st = { ...s, people: { ...s.people, [sp.id]: sp }, pc: { ...s.pc, spouseId: sp.id } };
+    const wage = effectiveSalary(sp.jobCategory, sp.CA, sp.attributes.hidden.loyalty, "US");
+    expect(spouseIncome(st)).toBe(Math.round(wage * SPOUSE_CONTRIB * 1)); // rep0→プレミアム0
+    expect(spouseIncome(st)).toBeGreaterThan(1000); // 中堅配偶者で$1,000超＝実給与スケール
+  });
+
+  it("配偶者インカムは能力(CA)・評判に単調増加（高望みの見返り）", () => {
+    const s = initGame({ seed: 7 });
+    const cand = eligiblePartners(s)[0];
+    const inc = (ca: number, rep: number) => {
+      const sp: Person = { ...cand, id: `sp-${ca}-${rep}`, CA: ca, reputation: rep, relationToPC: "spouse" };
+      return spouseIncome({ ...s, people: { ...s.people, [sp.id]: sp }, pc: { ...s.pc, spouseId: sp.id } });
+    };
+    expect(inc(150, 50)).toBeGreaterThan(inc(60, 50));  // CAで増加
+    expect(inc(130, 90)).toBeGreaterThan(inc(130, 10)); // 評判で増加
+  });
+
+  it("既婚（中堅配偶者）は教育を毎ターン続けても個人資産が枯渇しない", () => {
+    let s = initGame({ seed: 7, archetype: "labor" });
+    const cand = eligiblePartners(s).find((p) => p.CA >= 100) ?? eligiblePartners(s)[0];
+    const spouse: Person = { ...cand, age: 28, CA: 130, reputation: 55, relationToPC: "spouse" };
+    const child = buildChild(s, 150, 130, makePRNG(5));
+    s = {
+      ...s,
+      people: { ...s.people, [spouse.id]: spouse, [child.id]: child },
+      pc: { ...s.pc, spouseId: spouse.id, childrenIds: [child.id] },
+      marriagePool: s.marriagePool.filter((p) => p.id !== spouse.id),
+    };
+    const w0 = s.pc.wealth;
+    for (let t = 0; t < 15; t++) { const r = educateChild(s, child.id); if (r.ok) s = r.state; s = advanceTurn(s).next; }
+    expect(s.childEducation[child.id]).toBe(15); // 毎ターン教育できた
+    expect(s.pc.wealth).toBeGreaterThan(w0);     // それでも資産は枯渇せず増える
+  });
+
+  it("独身でも役員報酬−生活費で個人資産が緩やかに増える", () => {
+    let s = initGame({ seed: 7 });
+    const w0 = s.pc.wealth;
+    s = advanceN(s, 5);
+    expect(s.pc.wealth).toBeGreaterThan(w0);
+    expect(pcSalary(s)).toBeGreaterThan(lifestyleCost(s)); // 報酬 > 生活費
   });
 });
