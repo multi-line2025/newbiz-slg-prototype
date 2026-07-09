@@ -233,10 +233,11 @@ const ATTR_LABEL: Record<string, string> = {
   loyalty: "忠誠", temperament: "気性", controversy: "問題行動性", durability: "頑健さ",
 };
 
-/** 1能力値のバー（1-20）。 */
+/** 1能力値のバー（1-20）。表示は整数、マウスホバー(title)で実数値を開示。 */
 function attrBar(label: string, val: number): string {
   const pct = (val / 20) * 100;
-  return `<div class="ab"><span class="ab-l">${label}</span><span class="ab-track"><span class="ab-fill" style="width:${pct}%"></span></span><span class="ab-v">${val}</span></div>`;
+  const shown = Math.round(val);
+  return `<div class="ab" title="${label}：${val.toFixed(2)}"><span class="ab-l">${label}</span><span class="ab-track"><span class="ab-fill" style="width:${pct}%"></span></span><span class="ab-v">${shown}</span></div>`;
 }
 /** 1カテゴリのバー群。 */
 function attrCategory(cat: keyof Attributes, attrs: Attributes): string {
@@ -258,7 +259,7 @@ function detailModal(): string {
     // フル開示：28（29）能力を4カテゴリのバーで
     body = `
       <div class="d-kpis">
-        <span><b class="ca">CA ${p.CA}</b> / <b class="pa">PA ${p.PA}</b></span>
+        <span><b class="ca">CA ${Math.round(p.CA)}</b> / <b class="pa">PA ${p.PA}</b></span>
         <span>忠誠 ${p.attributes.hidden.loyalty} / 士気 ${p.morale}</span>
         <span>月給 $${fmt(p.contract?.salary ?? 0)}</span>
         <span>配属 ${p.assignedRole ? JOB_LABEL[p.assignedRole] : "未配属"}</span>
@@ -550,6 +551,19 @@ function careerTab(): string {
         <div class="kpi"><div class="k">個人RP</div><div class="v">${info.rpPersonal}</div></div>
         <div class="kpi"><div class="k">生活水準</div><div class="v">${info.lifestyleFactor.toFixed(1)}</div></div>
         <div class="kpi"><div class="k">世代</div><div class="v">${info.generation}代目</div></div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>あなたの能力値<span class="legend">社長自身の能力（実務兼務で会社の戦力にも）。バーは整数表示・ホバーで実数値。</span></h2>
+      <div class="d-kpis">
+        <span><b class="ca">CA ${Math.round(pc.CA)}</b> / <b class="pa">PA ${pc.PA}</b></span>
+        <span>配属 ${pc.assignedRole ? JOB_LABEL[pc.assignedRole] : "経営専念（未配属）"}</span>
+      </div>
+      <div class="ab-grid">
+        ${attrCategory("occupational", pc.attributes)}
+        ${attrCategory("mental", pc.attributes)}
+        ${attrCategory("condition", pc.attributes)}
+        ${attrCategory("hidden", pc.attributes)}
       </div>
     </section>
     ${pcWorkPanel()}
