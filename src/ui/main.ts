@@ -11,7 +11,7 @@
 import { initGame } from "../core/init";
 import { advanceTurn } from "../core/turn";
 import type { ProtoGameState, MarketState } from "../core/state";
-import { employees, poolPeople, productTeam } from "../core/state";
+import { employees, poolPeople, productTeam, effectiveApMax, pcWorking } from "../core/state";
 import type { PlayableCountry, JobCategory, Role } from "../core/model/types";
 import {
   scoutCandidate,
@@ -31,6 +31,7 @@ import {
   educateChild,
   scoutMarriageCandidate,
   setTryForChild,
+  releasePC,
   type ActionResult,
   type MarketChannel,
 } from "../core/actions";
@@ -47,7 +48,7 @@ import {
 import { marketEff, marketSizeOf } from "../core/markets";
 import { staleEff } from "../core/dynamics";
 import { analysisSkill, fitP, opportunityScore, analyzedRange } from "../core/analysis";
-import { SCOUT_STEPS, SECTOR_NAME, SECTORS, ANALYSIS_STEPS, DMAT_REF, SCOUT_SUB_COST, MAX_PENDING_OFFERS } from "../core/model/constants";
+import { SCOUT_STEPS, SECTOR_NAME, SECTORS, ANALYSIS_STEPS, DMAT_REF, SCOUT_SUB_COST, MAX_PENDING_OFFERS, PC_WORK_AP_PENALTY as PC_WORK_AP_PENALTY_UI } from "../core/model/constants";
 import { ACHIEVEMENTS, getAchievement, checkAchievements } from "../core/achievements";
 import { storage } from "../core/save";
 import type { Attributes } from "../core/model/types";
@@ -381,7 +382,7 @@ function productsPanel(): string {
         <button class="mini xs" data-mbudget="${p.id}:${key}:1">＋</button></span>`;
     return `<div class="prod-card">
       <div class="prod-head"><b>${SECTOR_NAME[p.sector]} × ${COUNTRY_LABEL[p.country]}</b>
-        <span class="muted">QUAL_p <b class="pa">${p.QUAL_p.toFixed(0)}</b>/天井${cap}(t${tier}) / 開発${p.devTurns}T / 担当${team.length}名 / ${matTxt}</span></div>
+        <span class="muted">QUAL_p <b class="pa">${p.QUAL_p.toFixed(0)}</b>/天井${cap}(t${tier}) / 開発${p.devTurns}T / 担当${team.length}名${team.some((m) => m.id === state.pc.personId) ? `<span class="mv aggr" style="margin-left:4px">社長兼務</span>` : ""} / ${matTxt}</span></div>
       <div class="share-bar">
         <div class="sb-track">
           <div class="sb-sticky" style="width:${p.sticky}%"></div>
@@ -551,11 +552,37 @@ function careerTab(): string {
         <div class="kpi"><div class="k">世代</div><div class="v">${info.generation}代目</div></div>
       </div>
     </section>
+    ${pcWorkPanel()}
     <section class="panel">
       <h2>これまでの経歴</h2>
       <div class="loglines">${milestones.map((m) => `<div class="line">・${m}</div>`).join("")}
         ${gotAch.length ? `<div class="line">🏆 実績：${gotAch.join(" / ")}</div>` : ""}</div>
     </section>`;
+}
+
+/** 社長の実務兼務パネル（v0.16）：役割・製品へ配属/解除。現場に立つとAP上限が下がる。 */
+function pcWorkPanel(): string {
+  const pc = pcPerson(state);
+  const pcId = state.pc.personId;
+  const role = pc.assignedRole;
+  const assignedProdId = state.assignments[pcId] ?? "";
+  const roleOpts = [`<option value="">—役割なし—</option>`]
+    .concat(JOBS.map((j) => `<option value="${j}"${role === j ? " selected" : ""}>${JOB_LABEL[j]}</option>`)).join("");
+  const prodOpts = [`<option value="">—製品なし—</option>`]
+    .concat(state.products.map((p) => `<option value="${p.id}"${assignedProdId === p.id ? " selected" : ""}>${SECTOR_NAME[p.sector]}×${COUNTRY_LABEL[p.country]}</option>`)).join("");
+  const status = pcWorking(state)
+    ? `<div class="mv aggr">🛠 社長（兼務）：${role ? JOB_LABEL[role] : "?"}${assignedProdId ? ` ＠ ${state.products.find((p) => p.id === assignedProdId) ? SECTOR_NAME[state.products.find((p) => p.id === assignedProdId)!.sector] + "×" + COUNTRY_LABEL[state.products.find((p) => p.id === assignedProdId)!.country] : ""}` : "（製品未配属）"} ／ AP上限 ${state.apMax}→<b>${effectiveApMax(state)}</b></div>`
+    : `<div class="muted">社長は経営に専念中（AP上限 ${state.apMax}）。役割に就くと現場戦力になりますが、AP上限が ${PC_WORK_AP_PENALTY_UI} 下がります。</div>`;
+  return `<section class="panel">
+    <h2>社長の実務兼務<span class="legend">創業者が穴を埋める＝現場戦力に。ただし経営judgeが手薄に（AP上限−${PC_WORK_AP_PENALTY_UI}）。給与は役員報酬のみ（社員給与は発生しない）。</span></h2>
+    ${status}
+    <div class="recruit-ctl">
+      <label>役割 <select data-pcrole>${roleOpts}</select></label>
+      <label>製品 <select data-pcproduct>${prodOpts}</select></label>
+      ${pcWorking(state) ? `<button class="mini ghost" data-pcrelease>実務を離れる</button>` : ""}
+      <span class="muted">CA ${pc.CA} の戦力として通常社員と同じ式で貢献します。</span>
+    </div>
+  </section>`;
 }
 
 /** 評判釣り合いの実現可能性ラベル。 */
@@ -822,7 +849,9 @@ function archetypeModal(): string {
 function topBar(): string {
   const c = state.company;
   const runwayWarn = isFinite(c.runwayTurns) && c.runwayTurns <= 6 ? "danger" : "";
-  const apDots = "●".repeat(Math.max(0, state.ap)) + "○".repeat(Math.max(0, state.apMax - state.ap));
+  const apCap = effectiveApMax(state);
+  const apDots = "●".repeat(Math.max(0, state.ap)) + "○".repeat(Math.max(0, apCap - state.ap))
+    + (pcWorking(state) ? ` <span class="muted" title="社長が実務中でAP上限−${state.apMax - apCap}">🛠${apCap}</span>` : "");
   return `<div class="topbar">
     <div class="tb-brand">
       <div class="tb-co">${c.name}</div>
@@ -1198,6 +1227,16 @@ function render(): void {
   );
   app.querySelectorAll<HTMLSelectElement>("[data-passign]").forEach((sel) =>
     sel.addEventListener("change", () => apply(assignToProduct(state, sel.dataset.passign!, sel.value || null)))
+  );
+  // 社長の実務兼務（v0.16）：役割/製品の割当・解除
+  app.querySelectorAll<HTMLSelectElement>("[data-pcrole]").forEach((sel) =>
+    sel.addEventListener("change", () => apply(sel.value ? assignRole(state, state.pc.personId, sel.value as Role) : releasePC(state)))
+  );
+  app.querySelectorAll<HTMLSelectElement>("[data-pcproduct]").forEach((sel) =>
+    sel.addEventListener("change", () => apply(assignToProduct(state, state.pc.personId, sel.value || null)))
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-pcrelease]").forEach((b) =>
+    b.addEventListener("click", () => apply(releasePC(state)))
   );
   app.querySelectorAll<HTMLButtonElement>("[data-unlock]").forEach((b) =>
     b.addEventListener("click", () => apply(unlockBlueprint(state, b.dataset.unlock!)))
