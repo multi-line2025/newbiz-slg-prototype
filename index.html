@@ -163,6 +163,33 @@
       .trychild { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-top: 6px; cursor: pointer; }
       .trychild input { width: 16px; height: 16px; }
       .succ-card { border-color: #d9a441; box-shadow: 0 0 0 1px rgba(217,164,65,0.4) inset; }
+      /* 技術ツリー系統図（v0.21・SVG） */
+      .tt-legend { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+      .tt-key { font-size: 10px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--border); color: var(--muted); }
+      .tt-key.tt-on { border-color: var(--ca); color: var(--ca); }
+      .tt-key.tt-off { border-color: var(--border); color: var(--muted); }
+      .tt-key.tt-svc-on { border-color: var(--ca); color: var(--ca); }
+      .tt-key.tt-svc-year { border-color: var(--amber); color: var(--amber); }
+      .tt-key.tt-svc-lock { border-color: var(--warn); color: var(--warn); }
+      .tt-scroll { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+      .tt-svg { display: block; }
+      .tt-col { fill: var(--muted); font-size: 10px; font-weight: 700; }
+      .tt-edge { fill: none; stroke: var(--border); stroke-width: 1; opacity: 0.7; }
+      .tt-edge.hl { stroke: var(--accent); stroke-width: 2; opacity: 1; }
+      .tt-edge.dim { opacity: 0.08; }
+      .tt-node { cursor: pointer; }
+      .tt-node rect { fill: var(--panel2); stroke: var(--border); stroke-width: 1; }
+      .tt-node .tt-lb { fill: var(--text); font-size: 11px; }
+      .tt-node .tt-sub { fill: var(--muted); font-size: 9px; }
+      .tt-node.tt-found rect { stroke: var(--accent); fill: rgba(56,139,253,0.12); }
+      .tt-node.tt-on rect { stroke: var(--ca); }
+      .tt-node.tt-off rect { fill: var(--bg); }
+      .tt-node.tt-off .tt-lb { fill: var(--muted); }
+      .tt-node.tt-svc-on rect { stroke: var(--ca); fill: rgba(63,185,80,0.12); }
+      .tt-node.tt-svc-year rect { stroke: var(--amber); }
+      .tt-node.tt-svc-lock rect { stroke: var(--warn); }
+      .tt-node.hl rect { stroke-width: 2; }
+      .tt-node.dim { opacity: 0.2; }
       /* 表内ミニボタン */
       td.acts { white-space: nowrap; }
       button.mini {

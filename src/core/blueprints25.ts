@@ -98,3 +98,42 @@ export function costScaleForYear(year: number): CostScaleBand | undefined {
     return year >= Number(m[1]) && year <= Number(m[2]);
   });
 }
+
+/* ============================================================
+ * 系統図用：基盤技術↔技術の field 近似マッピング（v0.21）
+ *  ※ データに基盤→技術の明示エッジは無いため、技術の field を基盤に近似で紐付ける。
+ *     対応の無い field（バイオ/素材/航空宇宙）は「その他（横断）」根に束ねる。
+ *     暗号・決済ネットワーク基盤は決済系techが field=ソフト基盤に含まれるため直接の技術を持たない。
+ * ============================================================ */
+export const ORPHAN_FOUNDATION = "その他（横断）";
+export const FIELD_TO_FOUNDATION: Record<string, string> = {
+  "半導体": "半導体・微細化",
+  "記憶": "半導体・微細化",
+  "製造": "半導体・微細化",
+  "電池": "電池（リチウムイオン）",
+  "エネルギー": "電池（リチウムイオン）",
+  "表示": "ディスプレイ（液晶/有機EL）",
+  "通信": "通信網（2G→5G）",
+  "ソフト基盤": "クラウド／データセンター",
+  "センサー": "各種センサー",
+  "制御": "各種センサー",
+  "入力": "各種センサー",
+  "アルゴリズム": "動画圧縮・広帯域",
+  "AI": "深層学習・大規模計算",
+  // バイオ / 素材 / 航空宇宙 → ORPHAN_FOUNDATION（対応する基盤がデータに無い）
+};
+
+/** 技術が属する基盤（field近似）。未対応fieldは「その他（横断）」。 */
+export function foundationOfTech(t: Tech): string {
+  return FIELD_TO_FOUNDATION[t.field] ?? ORPHAN_FOUNDATION;
+}
+/** ある基盤に紐づく技術群（year昇順）。 */
+export function techsOfFoundation(name: string): Tech[] {
+  return TECHS.filter((t) => foundationOfTech(t) === name).sort((a, b) => a.year - b.year || a.id.localeCompare(b.id));
+}
+/** 技術を1つ以上持つ基盤名（系統図の絞り込み候補・元の9順＋その他）。 */
+export function foundationNamesWithTechs(): string[] {
+  const names = FOUNDATIONS.map((f) => f.name).filter((n) => techsOfFoundation(n).length > 0);
+  if (techsOfFoundation(ORPHAN_FOUNDATION).length > 0) names.push(ORPHAN_FOUNDATION);
+  return names;
+}

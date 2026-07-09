@@ -14,7 +14,8 @@ import type { ProtoGameState, MarketState } from "../core/state";
 import { employees, poolPeople, productTeam, effectiveApMax, pcWorking, gameYear } from "../core/state";
 import {
   SECTORS25, FOUNDATIONS, SERVICES, techAvailable, serviceStatus, prereqTechsOf,
-  sectorProfile, type Service,
+  foundationOfTech, techsOfFoundation, foundationNamesWithTechs,
+  servicesRequiringTech, type Service, type Tech,
 } from "../core/blueprints25";
 import type { PlayableCountry, JobCategory, Role } from "../core/model/types";
 import {
@@ -129,11 +130,11 @@ let recruitSort: RecruitSort = "stars";
 let recruitJob: JobCategory | "all" = "all";
 let recruitPage = 0;
 const RECRUIT_PAGE_SIZE = 20; // 1ページ描画数（500人でも軽い）
-// 技術ツリー（v0.20）：セクター/状態フィルタ・ページ
-let techSector = "all";
-let techStatusFilter: "all" | "unlockable" | "locked" = "all";
-let techPage = 0;
-const TECH_PAGE_SIZE = 24;
+// 技術ツリー系統図（v0.21）：絞り込みモード（セクター/基盤）＋選択＋ホバー用グラフ保持
+let techMode: "sector" | "foundation" = "sector";
+let techSector = ""; // 選択セクター名（描画時に先頭へフォールバック）
+let techFoundation = ""; // 選択基盤名（描画時に先頭へフォールバック）
+let ttLastGraph: TTGraph | null = null; // 直近描画の系統図（ホバー依存ハイライト用）
 
 /** その人物が現在“見える”か（社員/家族＝常に可視／候補＝その国のサブスク加入時のみ）。 */
 function isVisible(p: { id: string; nationality: string }): boolean {
@@ -773,86 +774,163 @@ function familyTab(): string {
 }
 
 /* ============================================================
- * 技術ツリータブ（v0.20 PhaseA）：基盤技術9→技術87→サービス124の依存と解禁状態
+ * 技術ツリー系統図タブ（v0.21）：基盤技術9 → 技術87 → サービス124 を線で接続した系統図。
+ *   SVG自前描画（外部lib禁止）。絞り込み（セクター/基盤）で部分木のみを綺麗に描く。
  *   ※ 表示＋可否判定のみ（経済非干渉）。25セクター経済化はPhaseB。
  * ============================================================ */
+
+/** 系統図のノード。 */
+interface TTNode { id: string; kind: "found" | "tech" | "svc"; col: number; x: number; y: number; w: number; h: number; label: string; sub: string; cls: string; tip: string; }
+/** 系統図（ノード＋依存エッジ）。 */
+interface TTGraph { nodes: TTNode[]; edges: { from: string; to: string }[]; width: number; height: number; }
+
+const TT = { X: [10, 300, 620], W: [250, 250, 400], ROW: 30, NODE_H: 24, TOP: 12 } as const;
+
+/** 現在の絞り込みから系統図グラフ（座標付き）を構築する。 */
+function buildTreeGraph(): TTGraph {
+  const year = gameYear(state);
+  let founds: string[] = [];
+  let techs: Tech[] = [];
+  let svcs: Service[] = [];
+
+  if (techMode === "foundation") {
+    const fname = techFoundation || foundationNamesWithTechs()[0];
+    founds = [fname];
+    techs = techsOfFoundation(fname);
+    const set = new Set(techs.map((t) => t.id));
+    const seen = new Set<number>();
+    for (const t of techs) for (const s of servicesRequiringTech(t.id)) if (!seen.has(s.no)) { seen.add(s.no); svcs.push(s); }
+    svcs.sort((a, b) => a.gateYear - b.gateYear || a.no - b.no);
+    if (svcs.length > 30) svcs = svcs.slice(0, 30); // 半導体等の密集を抑制
+    // techs は set のまま
+    void set;
+  } else {
+    const sname = techSector || SECTORS25[0].name;
+    svcs = SERVICES.filter((s) => s.sectorName === sname).sort((a, b) => a.gateYear - b.gateYear || a.no - b.no);
+    const tset = new Map<string, Tech>();
+    for (const s of svcs) for (const t of prereqTechsOf(s)) tset.set(t.id, t);
+    techs = [...tset.values()].sort((a, b) => a.year - b.year || a.id.localeCompare(b.id));
+    const fset = new Set<string>();
+    for (const t of techs) fset.add(foundationOfTech(t));
+    founds = FOUNDATIONS.map((f) => f.name).filter((n) => fset.has(n));
+    if (fset.has("その他（横断）")) founds.push("その他（横断）");
+  }
+
+  const techSet = new Set(techs.map((t) => t.id));
+  const nodes: TTNode[] = [];
+  const pos = new Map<string, TTNode>();
+  const addCol = (items: { id: string; kind: TTNode["kind"]; label: string; sub: string; cls: string; tip: string }[], col: number) => {
+    items.forEach((it, i) => {
+      const n: TTNode = { ...it, col, x: TT.X[col], y: TT.TOP + i * TT.ROW, w: TT.W[col], h: TT.NODE_H };
+      nodes.push(n); pos.set(n.id, n);
+    });
+  };
+  addCol(founds.map((f) => {
+    const fd = FOUNDATIONS.find((x) => x.name === f);
+    return { id: `f:${f}`, kind: "found" as const, label: f, sub: "基盤", cls: "tt-found", tip: `基盤技術：${f}${fd ? ` / 波及先：${fd.spread}` : ""}` };
+  }), 0);
+  addCol(techs.map((t) => {
+    const on = techAvailable(t, year);
+    return { id: `t:${t.id}`, kind: "tech" as const, label: t.name, sub: `${t.year}`, cls: on ? "tt-on" : "tt-off", tip: `技術：${t.name}（${t.field}）/ 解禁 ${t.year}年${on ? " ✓可用" : ` / あと${t.year - year}年`}` };
+  }), 1);
+  const sid = (s: Service) => `s:${SERVICES.indexOf(s)}`; // no はセクター番号で非一意 → 全体indexで一意化
+  addCol(svcs.map((s) => {
+    const st = serviceStatus(s, year);
+    const cls = st.unlockable ? "tt-svc-on" : !st.yearReached ? "tt-svc-year" : "tt-svc-lock";
+    const stTxt = st.unlockable ? "✅着手可能" : !st.yearReached ? `⏳${s.gateYear}年（あと${s.gateYear - year}年）` : `🔒前提技術${st.missingTechs.length}件不足`;
+    return { id: sid(s), kind: "svc" as const, label: s.service, sub: `${s.sectorName}`, cls, tip: `${s.service} / ${s.sectorName} / 解禁${s.gateYear}年 / コスト eng${s.cost.eng} des${s.cost.des} res${s.cost.res} mgt${s.cost.mgt}（計${s.cost.total}）/ ${stTxt}` };
+  }), 2);
+
+  // エッジ：基盤→技術（field近似）、技術→サービス（前提技術）
+  const edges: { from: string; to: string }[] = [];
+  for (const t of techs) { const f = foundationOfTech(t); if (pos.has(`f:${f}`)) edges.push({ from: `f:${f}`, to: `t:${t.id}` }); }
+  for (const s of svcs) for (const t of prereqTechsOf(s)) if (techSet.has(t.id)) edges.push({ from: `t:${t.id}`, to: sid(s) });
+
+  const rows = Math.max(founds.length, techs.length, svcs.length, 1);
+  return { nodes, edges, width: TT.X[2] + TT.W[2] + 12, height: TT.TOP + rows * TT.ROW + 12 };
+}
+
+/** 系統図SVGを描く。 */
+function renderTreeSvg(g: TTGraph): string {
+  const posOf = (id: string) => g.nodes.find((n) => n.id === id)!;
+  const paths = g.edges.map((e) => {
+    const a = posOf(e.from), b = posOf(e.to);
+    const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
+    const mx = (x1 + x2) / 2;
+    return `<path class="tt-edge" data-from="${e.from}" data-to="${e.to}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`;
+  }).join("");
+  const nodesHtml = g.nodes.map((n) => {
+    const label = n.label.length > (n.col === 2 ? 26 : 16) ? n.label.slice(0, n.col === 2 ? 26 : 16) + "…" : n.label;
+    return `<g class="tt-node ${n.cls}" data-id="${n.id}" transform="translate(${n.x},${n.y})">
+      <rect width="${n.w}" height="${n.h}" rx="5"/>
+      <text class="tt-lb" x="8" y="16">${escapeXml(label)}</text>
+      <text class="tt-sub" x="${n.w - 6}" y="16" text-anchor="end">${escapeXml(n.sub)}</text>
+      <title>${escapeXml(n.tip)}</title>
+    </g>`;
+  }).join("");
+  const headers = `<text class="tt-col" x="${TT.X[0] + 4}" y="8">基盤技術</text><text class="tt-col" x="${TT.X[1] + 4}" y="8">技術（解禁年）</text><text class="tt-col" x="${TT.X[2] + 4}" y="8">サービス青写真</text>`;
+  return `<div class="tt-scroll"><svg class="tt-svg" width="${g.width}" height="${g.height + 12}" viewBox="0 -10 ${g.width} ${g.height + 12}">
+    ${headers}<g class="tt-edges">${paths}</g><g class="tt-nodes">${nodesHtml}</g>
+  </svg></div>`;
+}
+function escapeXml(s: string): string { return s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]!)); }
+
 function techTreeTab(): string {
   const year = gameYear(state);
+  const g = buildTreeGraph();
+  ttLastGraph = g; // ホバー依存ハイライト用に保持
 
-  // 基盤技術9（根）：波及先(spread)で「どの基盤がどのサービス群を開くか」を直感表示
-  const rootsHtml = FOUNDATIONS.map((f) => `<div class="rcard">
-      <div class="rc-head"><b>🌱 ${f.name}</b></div>
-      <div class="rc-tiers"><span>波及先：${f.spread}</span></div>
-      <div class="muted" style="font-size:11px">${f.note}</div>
-    </div>`).join("");
-
-  // サービス青写真：フィルタ→状態評価→ページング
-  let list = SERVICES.slice();
-  if (techSector !== "all") list = list.filter((s) => s.sectorName === techSector);
-  if (techStatusFilter !== "all") {
-    list = list.filter((s) => serviceStatus(s, year).unlockable === (techStatusFilter === "unlockable"));
-  }
-  list.sort((a, b) => a.gateYear - b.gateYear || a.no - b.no);
-  const total = list.length;
-  const pages = Math.max(1, Math.ceil(total / TECH_PAGE_SIZE));
-  const page = Math.min(techPage, pages - 1);
-  const view = list.slice(page * TECH_PAGE_SIZE, page * TECH_PAGE_SIZE + TECH_PAGE_SIZE);
-
-  const cards = view.map((s) => serviceCard(s, year)).join("");
-
-  const sectorOpts = [`<option value="all"${techSector === "all" ? " selected" : ""}>全セクター(25)</option>`]
-    .concat(SECTORS25.map((sec) => `<option value="${sec.name}"${techSector === sec.name ? " selected" : ""}>${sec.no}. ${sec.name}（${sec.category}）</option>`)).join("");
-  const statusOpts = ([["all", "全状態"], ["unlockable", "着手可能のみ"], ["locked", "未解禁のみ"]] as [string, string][])
-    .map(([v, l]) => `<option value="${v}"${techStatusFilter === v ? " selected" : ""}>${l}</option>`).join("");
-
+  const modeOpts = ([["sector", "セクターで絞る"], ["foundation", "基盤技術で絞る"]] as [string, string][])
+    .map(([v, l]) => `<option value="${v}"${techMode === v ? " selected" : ""}>${l}</option>`).join("");
+  const pickHtml = techMode === "sector"
+    ? `<label>セクター <select data-techpick>${SECTORS25.map((s) => `<option value="${s.name}"${(techSector || SECTORS25[0].name) === s.name ? " selected" : ""}>${s.no}. ${s.name}（${s.category}）</option>`).join("")}</select></label>`
+    : `<label>基盤技術 <select data-techpick>${foundationNamesWithTechs().map((n) => `<option value="${n}"${(techFoundation || foundationNamesWithTechs()[0]) === n ? " selected" : ""}>${n}</option>`).join("")}</select></label>`;
   const unlockableCount = SERVICES.filter((s) => serviceStatus(s, year).unlockable).length;
 
   return `
     <section class="panel">
-      <h2>技術ツリー（${year}年）<span class="legend">Excel v0.4 準拠・25セクター/9基盤/87技術/124サービス。年が進むと技術が解禁され、サービス青写真の着手条件が満たされる（PhaseA＝表示・可否のみ）。</span></h2>
-      <div class="sub-bar"><span>現在 <b>${year}年</b></span><span class="muted">着手可能サービス <b>${unlockableCount}</b> / ${SERVICES.length}（年進行で増加）</span></div>
-    </section>
-    <section class="panel">
-      <h2>基盤技術（9・ツリーの根）<span class="legend">各基盤が波及して多数のサービスを開く。半導体・電池・通信・クラウド・AI 等。</span></h2>
-      <div class="rgrid">${rootsHtml}</div>
-    </section>
-    <section class="panel">
-      <h2>サービス青写真（124）<span class="legend">前提技術が全て解禁 かつ 解禁年に到達で「着手可能」。4専門(eng/des/res/mgt)コストは開発投入目標。</span></h2>
+      <h2>技術ツリー系統図（${year}年）<span class="legend">基盤技術→技術→サービスを線で接続した依存系統図。年が進むと技術が解禁される。ノードにホバーで依存チェーンをハイライト。（PhaseA＝表示・可否のみ）</span></h2>
       <div class="recruit-ctl">
-        <label>セクター <select data-techsector>${sectorOpts}</select></label>
-        <label>状態 <select data-techstatus>${statusOpts}</select></label>
-        <div class="pager">
-          <button class="mini" data-techpage="prev" ${page <= 0 ? "disabled" : ""}>‹ 前</button>
-          <span class="muted">${total ? page * TECH_PAGE_SIZE + 1 : 0}–${Math.min(total, (page + 1) * TECH_PAGE_SIZE)} / 全${total}（${page + 1}/${pages}）</span>
-          <button class="mini" data-techpage="next" ${page >= pages - 1 ? "disabled" : ""}>次 ›</button>
-        </div>
+        <label>表示 <select data-techmode>${modeOpts}</select></label>
+        ${pickHtml}
+        <span class="muted">現在 <b>${year}年</b> ／ 着手可能サービス <b>${unlockableCount}</b>/${SERVICES.length}</span>
       </div>
-      <div class="rgrid">${cards || `<div class="muted">条件に合うサービスがありません。</div>`}</div>
+      <div class="tt-legend">
+        <span class="tt-key tt-on">技術：可用</span><span class="tt-key tt-off">技術：未解禁</span>
+        <span class="tt-key tt-svc-on">✅着手可能</span><span class="tt-key tt-svc-year">⏳年未到達</span><span class="tt-key tt-svc-lock">🔒前提不足</span>
+      </div>
+      ${renderTreeSvg(g)}
     </section>`;
 }
 
-/** サービス青写真1枚のカード（解禁状態＋前提技術＋4専門コスト）。 */
-function serviceCard(s: Service, year: number): string {
-  const st = serviceStatus(s, year);
-  const badge = st.unlockable
-    ? `<span class="mv up">✅ 着手可能</span>`
-    : !st.yearReached
-      ? `<span class="mv aggr">⏳ ${s.gateYear}年解禁（あと${s.gateYear - year}年）</span>`
-      : `<span class="mv down">🔒 前提技術 ${st.missingTechs.length}件 不足</span>`;
-  const prereqs = prereqTechsOf(s).map((t) => {
-    const ok = techAvailable(t, year);
-    return `<span class="${ok ? "mv up" : "blur"}" style="font-size:10px">${t.name}${ok ? "" : `(${t.year})`}</span>`;
-  }).join(" ");
-  const prof = sectorProfile(s.sectorName);
-  return `<div class="rcard ${st.unlockable ? "succ-card" : ""}">
-    <div class="rc-head"><b>${s.service.length > 22 ? s.service.slice(0, 22) + "…" : s.service}</b></div>
-    <div class="rc-tiers">
-      <span class="muted">${s.sectorName}${prof ? `（${prof.tendency.slice(0, 10)}）` : ""}</span>
-      ${badge}
-    </div>
-    <div class="rc-tiers"><span style="font-size:10px">前提技術：${prereqs || "なし"}</span></div>
-    <div class="rc-tiers"><span style="font-size:10px">コスト eng${s.cost.eng}/des${s.cost.des}/res${s.cost.res}/mgt${s.cost.mgt}（計${s.cost.total}）</span></div>
-  </div>`;
+/** 系統図ノードのホバーで依存チェーン（祖先＝前提技術/基盤・子孫＝それを使うサービス）だけをハイライトし、
+ *  兄弟枝を淡色化する。方向性BFS（祖先＝逆辺／子孫＝順辺）で「その依存系統」のみを強調。 */
+function wireTreeHover(app: HTMLElement): void {
+  const g = ttLastGraph;
+  if (!g) return;
+  const fwd = new Map<string, string[]>(); // from → [to]（子孫方向）
+  const bwd = new Map<string, string[]>(); // to → [from]（祖先方向）
+  const push = (m: Map<string, string[]>, a: string, b: string) => { if (!m.has(a)) m.set(a, []); m.get(a)!.push(b); };
+  for (const e of g.edges) { push(fwd, e.from, e.to); push(bwd, e.to, e.from); }
+  const reach = (start: string, m: Map<string, string[]>, acc: Set<string>) => {
+    const q = [start];
+    while (q.length) { const cur = q.shift()!; for (const nb of m.get(cur) ?? []) if (!acc.has(nb)) { acc.add(nb); q.push(nb); } }
+  };
+  const nodeEls = [...app.querySelectorAll<SVGGElement>(".tt-node")];
+  const edgeEls = [...app.querySelectorAll<SVGPathElement>(".tt-edge")];
+  if (nodeEls.length === 0) return;
+  const clear = () => { nodeEls.forEach((n) => n.classList.remove("dim", "hl")); edgeEls.forEach((e) => e.classList.remove("dim", "hl")); };
+  for (const el of nodeEls) {
+    el.addEventListener("mouseenter", () => {
+      const id = el.getAttribute("data-id")!;
+      const seen = new Set([id]);
+      reach(id, bwd, seen); // 祖先（前提技術・基盤）
+      reach(id, fwd, seen); // 子孫（それを使うサービス）
+      nodeEls.forEach((n) => { const on = seen.has(n.getAttribute("data-id")!); n.classList.toggle("hl", on); n.classList.toggle("dim", !on); });
+      edgeEls.forEach((p) => { const on = seen.has(p.getAttribute("data-from")!) && seen.has(p.getAttribute("data-to")!); p.classList.toggle("hl", on); p.classList.toggle("dim", !on); });
+    });
+    el.addEventListener("mouseleave", clear);
+  }
 }
 
 /* ============================================================
@@ -1462,16 +1540,14 @@ function render(): void {
   app.querySelectorAll<HTMLButtonElement>("[data-rpage]").forEach((b) =>
     b.addEventListener("click", () => { recruitPage += b.dataset.rpage === "next" ? 1 : -1; if (recruitPage < 0) recruitPage = 0; render(); })
   );
-  // 技術ツリー（v0.20）：セクター/状態フィルタ・ページング
-  app.querySelectorAll<HTMLSelectElement>("[data-techsector]").forEach((sel) =>
-    sel.addEventListener("change", () => { techSector = sel.value; techPage = 0; render(); })
+  // 技術ツリー系統図（v0.21）：モード切替・絞り込み・ノードホバー依存ハイライト
+  app.querySelectorAll<HTMLSelectElement>("[data-techmode]").forEach((sel) =>
+    sel.addEventListener("change", () => { techMode = sel.value as "sector" | "foundation"; render(); })
   );
-  app.querySelectorAll<HTMLSelectElement>("[data-techstatus]").forEach((sel) =>
-    sel.addEventListener("change", () => { techStatusFilter = sel.value as typeof techStatusFilter; techPage = 0; render(); })
+  app.querySelectorAll<HTMLSelectElement>("[data-techpick]").forEach((sel) =>
+    sel.addEventListener("change", () => { if (techMode === "sector") techSector = sel.value; else techFoundation = sel.value; render(); })
   );
-  app.querySelectorAll<HTMLButtonElement>("[data-techpage]").forEach((b) =>
-    b.addEventListener("click", () => { techPage += b.dataset.techpage === "next" ? 1 : -1; if (techPage < 0) techPage = 0; render(); })
-  );
+  wireTreeHover(app);
   // --- 国別スカウトサブスク（v0.10）：タブ切替・加入・解約 ---
   app.querySelectorAll<HTMLButtonElement>("[data-rctry]").forEach((b) =>
     b.addEventListener("click", () => { recruitCountry = b.dataset.rctry as PlayableCountry; recruitPage = 0; render(); })
