@@ -86,7 +86,7 @@ describe("青写真tier：特化 vs 汎用（§5）", () => {
     return {
       name: "T", foundedCountry: "US", CASH: 100000, reputation: 20,
       monthlyBurn: 0, runwayTurns: 0, RP_C: 0, researchBudget: 0,
-      unlockedBlueprints: [], missionTags: [], THxP_customer: 0, ...over,
+      unlockedBlueprints: [], missionTags: [], THxP_customer: 0, capTable: { totalShares: 1000000, pcShares: 1000000, holders: [] }, ...over,
     };
   }
 

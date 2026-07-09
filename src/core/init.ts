@@ -148,6 +148,7 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
     unlockedBlueprints: [starterBlueprint], // 創業製品の青写真は保有済み
     missionTags: [...DEFAULT_MISSION_TAGS],
     THxP_customer: 0,
+    capTable: { totalShares: 1_000_000, pcShares: 1_000_000, holders: [] }, // 創業時PC100%（v0.19）
   };
 
   const state: ProtoGameState = {
@@ -182,6 +183,7 @@ export function initGame(opts: InitOptions = {}): ProtoGameState {
     familySeed: seed ^ 0x1d872b41, // 家族アクション（求愛/求婚）専用の乱数種
     tryForChild: false, // 子作りは既定OFF（ONのターンのみ受胎・v0.14）
     marriagePool: generateMarriagePool(country, era, makePRNG(seed ^ 0x9e3ab21f)), // 結婚市場（専用rng＝非回帰）
+    stockHoldings: {}, // 他社株の保有（個人資産で売買・v0.19）
     markets,
     products: [starter],
     assignments,

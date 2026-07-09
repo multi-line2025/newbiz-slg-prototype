@@ -17,6 +17,20 @@ import { PC_WORK_AP_PENALTY } from "./model/constants";
  * v0.6で単一QUAL/TRAC/マーケ予算を廃止し、製品(Product)へ移譲。
  * 会社レベルに残すのは横断的資産（THxP・評判・研究）のみ。
  */
+/** 株主（自社キャップテーブル・v0.19簡易版）。 */
+export interface CapHolder {
+  id: Id;
+  name: string;
+  kind: "vc" | "employee" | "rival"; // 投資家/社員/ライバル
+  shares: number;
+}
+/** 自社キャップテーブル（§8簡易版・v0.19）。 */
+export interface ProtoCapTable {
+  totalShares: number;       // 総発行株式数
+  pcShares: number;          // PC(創業者)保有株数
+  holders: CapHolder[];      // その他株主（増資で発行）
+}
+
 export interface ProtoCompany {
   name: string;
   foundedCountry: PlayableCountry; // 設立国（市場規模・人件費の基準）
@@ -31,6 +45,14 @@ export interface ProtoCompany {
   missionTags: string[]; // 会社ミッションのタグ（青写真のミッション整合判定・§5.3）
   // --- 横断的な市場資産（会社共有・§2.4）---
   THxP_customer: number; // 顧客THxP（全製品の競争力C_pに横断的に効く）
+  // --- 資本政策（v0.19）---
+  capTable: ProtoCapTable; // 自社の株式（増資で希薄化）
+}
+
+/** 他社株の保有（個人資産で売買・v0.19）。 */
+export interface StockHolding {
+  shares: number;    // 保有株数
+  costBasis: number; // 取得総額（譲渡益＝売却額−取得原価の按分で算出）
 }
 
 /** 近接（near層）ライバル（§4.12接続の簡易版・市場成長モデル§3.2/§6.2）。 */
@@ -154,6 +176,7 @@ export interface ProtoGameState {
   familySeed: number; // 家族系アクション（求愛/求婚）の乱数種（turn乱数と分離・決定論）
   tryForChild: boolean; // 子作りトグル（ONのターンのみ受胎判定・既定OFF・v0.14）
   marriagePool: Person[]; // 結婚市場の候補（人材DBとは別・評判分布・毎ターン動的入替・v0.14）
+  stockHoldings: Record<Id, StockHolding>; // 他社株の保有（ライバルid→保有・個人資産で売買・v0.19）
   markets: Record<string, MarketState>; // 多市場グリッド（セクター×国・§1）
   products: Product[]; // 自社製品（青写真×市場）
   assignments: Record<Id, Id>; // 社員ID → 配属先製品ID（QUAL_p・force算出に使用）

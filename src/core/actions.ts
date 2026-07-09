@@ -32,6 +32,9 @@ import {
   validSuccessor, succeed, isHireableFamily, SUCCESSION_MIN_AGE,
 } from "./family";
 import { effectiveSalary } from "./salary";
+import {
+  companyValuation, pcShareRatio, rivalSharePrice, findRival, isRivalTradeable, capitalGainsRate,
+} from "./stock";
 
 /** アクションの結果。ok=false なら state は元のまま。 */
 export interface ActionResult {
@@ -383,6 +386,76 @@ export function hireFamily(state: ProtoGameState, personId: Id): ActionResult {
     }),
     ok: true,
     message: `家族入社：${p.name}（月給$${salary.toLocaleString()}）。評判ゲート・リクルート不要で即入社。`,
+  };
+}
+
+/* ============================================================
+ * v0.19：株式（増資・他社株の売買）
+ * ============================================================ */
+
+/**
+ * 増資（新株発行で資金調達・§8）。pre-money評価額ベースの発行価格で newShares を発行し、
+ * 会社CASHを amount 調達。PC持株は不変＝比率が希薄化する。1AP。
+ */
+export function raiseCapital(state: ProtoGameState, amount: number): ActionResult {
+  if (amount <= 0) return fail(state, "調達額を指定してください。");
+  if (state.ap < 1) return fail(state, "APが足りません（必要1AP）。");
+  const valuation = companyValuation(state); // pre-money
+  const pps = valuation / state.company.capTable.totalShares;
+  const newShares = Math.round(amount / pps);
+  if (newShares <= 0) return fail(state, "発行株式数が小さすぎます。");
+  const ct = state.company.capTable;
+  const totalShares = ct.totalShares + newShares;
+  const holders = [...ct.holders, { id: `vc-${state.turn}-${ct.holders.length}`, name: `投資家R${ct.holders.length + 1}`, kind: "vc" as const, shares: newShares }];
+  const nextCompany = { ...state.company, CASH: state.company.CASH + amount, capTable: { ...ct, totalShares, holders } };
+  const ratio = ct.pcShares / totalShares;
+  const warn = ratio < 0.5 ? `⚠ 持株比率が過半数割れ（${(ratio * 100).toFixed(1)}%）。経営権に注意。` : "";
+  return {
+    state: refreshDerived({ ...state, ap: state.ap - 1, company: nextCompany }),
+    ok: true,
+    message: `増資：$${amount.toLocaleString()} を調達（評価額$${valuation.toLocaleString()}）。持株比率 ${(pcShareRatio(nextCompany) * 100).toFixed(1)}%。${warn}`,
+  };
+}
+
+/** 他社株を買う（個人資産w.ealth・§9.2）。分析済み/参入済み市場のライバルのみ。1AP。 */
+export function buyRivalShares(state: ProtoGameState, rivalId: Id, shares: number): ActionResult {
+  const r = findRival(state, rivalId);
+  if (!r) return fail(state, "対象の会社が見つかりません。");
+  if (!isRivalTradeable(state, rivalId)) return fail(state, `${r.name}は未分析です（市場分析/参入で業績を評価できると売買可能）。`);
+  if (shares <= 0) return fail(state, "株数を指定してください。");
+  if (state.ap < 1) return fail(state, "APが足りません（必要1AP）。");
+  const cost = Math.round(rivalSharePrice(r) * shares);
+  if (state.pc.wealth < cost) return fail(state, `個人資産が不足しています（必要$${cost.toLocaleString()}）。`);
+  const h = state.stockHoldings[rivalId] ?? { shares: 0, costBasis: 0 };
+  const stockHoldings = { ...state.stockHoldings, [rivalId]: { shares: h.shares + shares, costBasis: h.costBasis + cost } };
+  return {
+    state: { ...state, ap: state.ap - 1, pc: { ...state.pc, wealth: state.pc.wealth - cost }, stockHoldings },
+    ok: true,
+    message: `📈 ${r.name} 株を ${shares}株 取得（$${cost.toLocaleString()}）。`,
+  };
+}
+
+/** 他社株を売る（個人資産へ・売却益に譲渡益課税・§9.2）。1AP。 */
+export function sellRivalShares(state: ProtoGameState, rivalId: Id, shares: number): ActionResult {
+  const h = state.stockHoldings[rivalId];
+  if (!h || h.shares <= 0) return fail(state, "その株を保有していません。");
+  if (shares <= 0 || shares > h.shares) return fail(state, "売却株数が不正です。");
+  if (state.ap < 1) return fail(state, "APが足りません（必要1AP）。");
+  const r = findRival(state, rivalId);
+  const price = r ? rivalSharePrice(r) : 0; // 上場廃止なら0
+  const proceeds = Math.round(price * shares);
+  const avgCost = Math.round(h.costBasis * (shares / h.shares));
+  const gain = proceeds - avgCost;
+  const tax = gain > 0 ? Math.round(gain * capitalGainsRate(state)) : 0;
+  const remShares = h.shares - shares;
+  const stockHoldings = { ...state.stockHoldings };
+  if (remShares <= 0) delete stockHoldings[rivalId];
+  else stockHoldings[rivalId] = { shares: remShares, costBasis: h.costBasis - avgCost };
+  const name = r ? r.name : "（上場廃止）";
+  return {
+    state: { ...state, ap: state.ap - 1, pc: { ...state.pc, wealth: state.pc.wealth + proceeds - tax }, stockHoldings },
+    ok: true,
+    message: `📉 ${name} 株を ${shares}株 売却（$${proceeds.toLocaleString()}）。損益${gain >= 0 ? "+" : ""}$${gain.toLocaleString()}${tax > 0 ? ` / 譲渡益税−$${tax.toLocaleString()}` : ""}。`,
   };
 }
 

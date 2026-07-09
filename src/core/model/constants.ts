@@ -613,3 +613,19 @@ export const MARRIAGE_MAX_AGE = 45;     // 結婚候補の上限年齢
  * v0.16：社長（PC）の実務兼務。役割に就くと現場戦力になるが経営judgeが手薄に。
  * ------------------------------------------------------------ */
 export const PC_WORK_AP_PENALTY = 3; // PCが役割に就いている間の apMax 減少量（現場に出ると経営が手薄）
+
+/* ------------------------------------------------------------
+ * v0.19：株式（自社キャップテーブル／他社株投資）
+ * ------------------------------------------------------------ */
+// 自社評価額 valuation = max(VAL_FLOOR, 年換算売上×REV_MULT + CASH + THxP×THXP_VAL + 評判×REP_VAL)
+export const VAL_REV_MULT = 4;      // 売上倍率（年換算売上に対する倍率＝典型的なスタートアップ水準）
+export const VAL_THXP_VAL = 300;    // 顧客THxP 1あたりの価値（トラクション・プレミアム）
+export const VAL_REP_VAL = 1500;    // 評判1あたりの価値（ブランド）
+export const VAL_FLOOR = 100_000;   // シード段階の評価額の下限
+// 他社（ライバル）評価額・株価
+export const RIVAL_VAL_BASE = 80_000; // 規模ティア1段あたりの基礎評価額
+export const RIVAL_SHARES = 10_000;   // ライバル1社の発行株式数（株価＝評価額/株数）
+// 譲渡益課税（国別・2026年実効に近い簡易値・§9.2）
+export const CAPITAL_GAINS_BY_COUNTRY: Record<PlayableCountry, number> = {
+  US: 0.20, JP: 0.20315, DE: 0.26375, GB: 0.20, SG: 0.0,
+};

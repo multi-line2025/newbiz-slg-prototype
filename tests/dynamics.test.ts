@@ -11,7 +11,7 @@ function makeCompany(over: Partial<ProtoCompany> = {}): ProtoCompany {
   return {
     name: "T", foundedCountry: "US", CASH: 100000, reputation: 50,
     monthlyBurn: 0, runwayTurns: 0, RP_C: 0, researchBudget: 0,
-    unlockedBlueprints: [], missionTags: [], THxP_customer: 0, ...over,
+    unlockedBlueprints: [], missionTags: [], THxP_customer: 0, capTable: { totalShares: 1000000, pcShares: 1000000, holders: [] }, ...over,
   };
 }
 function makeProduct(over: Partial<Product> = {}): Product {
