@@ -1353,10 +1353,10 @@ function render(): void {
     b.addEventListener("click", () => apply(raiseCapital(state, Number(b.dataset.raise))))
   );
   app.querySelectorAll<HTMLButtonElement>("[data-buystock]").forEach((b) =>
-    b.addEventListener("click", () => { const [id, sh] = b.dataset.buystock!.split(":"); apply(buyRivalShares(state, id, Number(sh))); })
+    b.addEventListener("click", () => { const d = b.dataset.buystock!; const i = d.lastIndexOf(":"); apply(buyRivalShares(state, d.slice(0, i), Number(d.slice(i + 1)))); })
   );
   app.querySelectorAll<HTMLButtonElement>("[data-sellstock]").forEach((b) =>
-    b.addEventListener("click", () => { const [id, sh] = b.dataset.sellstock!.split(":"); apply(sellRivalShares(state, id, Number(sh))); })
+    b.addEventListener("click", () => { const d = b.dataset.sellstock!; const i = d.lastIndexOf(":"); apply(sellRivalShares(state, d.slice(0, i), Number(d.slice(i + 1)))); })
   );
   // 採用市場：職種フィルタ・並べ替え・ページング（v0.11）
   app.querySelectorAll<HTMLSelectElement>("[data-rjob]").forEach((sel) =>

@@ -15,7 +15,7 @@
 import type { ProtoGameState } from "./state";
 
 /** セーブファイルのスキーマバージョン（将来のマイグレーション用）。 */
-export const SAVE_VERSION = "0.18"; // v0.18：世代交代（successorId/siblingIds）でスキーマ更新
+export const SAVE_VERSION = "0.19"; // v0.19：株式（capTable/stockHoldings）でスキーマ更新
 
 /** セーブファイルの包み。 */
 export interface SaveFile {
