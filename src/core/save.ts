@@ -15,7 +15,7 @@
 import type { ProtoGameState } from "./state";
 
 /** セーブファイルのスキーマバージョン（将来のマイグレーション用）。 */
-export const SAVE_VERSION = "0.19"; // v0.19：株式（capTable/stockHoldings）でスキーマ更新
+export const SAVE_VERSION = "0.20"; // v0.20：ゲーム内年（startYear）追加でスキーマ更新
 
 /** セーブファイルの包み。 */
 export interface SaveFile {
